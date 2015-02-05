@@ -8,8 +8,8 @@ function RateLimiter (options) {
       interval        = options.interval,
       maxInInterval   = options.maxInInterval,
       minDifference   = options.minDifference,
-      namespace       = options.namespace || ("rate-limiter-" + Math.random().toString(36).slice(2));
-  
+      namespace       = options.namespace || (options.redis ? ("rate-limiter-" + Math.random().toString(36).slice(2)) : "");
+
   redis = redis || fakeredis.createClient();
 
   assert(interval > 0, "Must pass a positive integer for `options.interval`");
@@ -21,6 +21,11 @@ function RateLimiter (options) {
   minDifference *= 1000;
 
   return function (id, cb) {
+    if (!cb) {
+      cb = id;
+      id = "";
+    }
+    
     assert.equal(typeof cb, "function", "Callback must be a function.");
     
     var now = microtime.now();

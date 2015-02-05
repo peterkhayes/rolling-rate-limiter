@@ -11,17 +11,22 @@ var RateLimitedCounter = function(options) {
 
   return {
     increment: function(userId, cb) {
-      counts[userId] = counts[userId] || 0;
-      rateLimiter(userId, function(err, success) {
+      if (!cb) {
+        cb = userId;
+        userId = null;
+      }
+      counts[String(userId)] = counts[String(userId)] || 0;
+      var limit = userId ? rateLimiter.bind(null, userId) : rateLimiter
+      limit(function(err, success) {
         if (success) {
-          counts[userId]++;
+          counts[String(userId)]++;
         }
         cb(err);
       });
     },
 
     getCount: function(userId) {
-      return counts[userId];
+      return counts[userId == null ? "null" : userId];
     }
   };
 
@@ -79,22 +84,22 @@ describe("rateLimiter", function () {
 
     it("prevents requests that exceed the maximum over the interval", function(done) {
       var counter = RateLimitedCounter({
-        interval: 1000,
+        interval: 300,
         maxInInterval: 30
       });
 
       async.times(100, function(n, next) {
-        counter.increment(1, next);
+        counter.increment(next);
       }, function(err) {
         if (err) throw err;
-        expect(counter.getCount(1)).to.equal(30);
+        expect(counter.getCount()).to.equal(30);
         done();
       });
     });
 
     it("keeps seperate counts for multiple users", function(done) {
       var counter = RateLimitedCounter({
-        interval: 1000,
+        interval: 300,
         maxInInterval: 30
       });
 
@@ -112,7 +117,7 @@ describe("rateLimiter", function () {
 
     it("allows requests after the interval has passed", function(done) {
       var counter = RateLimitedCounter({
-        interval: 1000,
+        interval: 300,
         maxInInterval: 30
       });
 
@@ -130,7 +135,7 @@ describe("rateLimiter", function () {
             expect(counter.getCount(2)).to.equal(60);
             done();
           });
-        }, 1000);
+        }, 500);
       });
     });
 
@@ -165,15 +170,15 @@ describe("rateLimiter", function () {
     it("prevents requests that exceed the maximum over the interval", function(done) {
       var counter = RateLimitedCounter({
         redis: redis.createClient(),
-        interval: 1000,
+        interval: 300,
         maxInInterval: 30
       });
 
       async.times(100, function(n, next) {
-        counter.increment(1, next);
+        counter.increment(next);
       }, function(err) {
         if (err) throw err;
-        expect(counter.getCount(1)).to.equal(30);
+        expect(counter.getCount()).to.equal(30);
         done();
       });
     });
@@ -181,7 +186,7 @@ describe("rateLimiter", function () {
     it("keeps seperate counts for multiple users", function(done) {
       var counter = RateLimitedCounter({
         redis: redis.createClient(),
-        interval: 1000,
+        interval: 300,
         maxInInterval: 30
       });
 
@@ -200,7 +205,7 @@ describe("rateLimiter", function () {
     it("allows requests after the interval has passed", function(done) {
       var counter = RateLimitedCounter({
         redis: redis.createClient(),
-        interval: 1000,
+        interval: 300,
         maxInInterval: 30
       });
 
@@ -218,7 +223,7 @@ describe("rateLimiter", function () {
             expect(counter.getCount(2)).to.equal(60);
             done();
           });
-        }, 1000);
+        }, 300);
       });
     });
 
@@ -246,12 +251,12 @@ describe("rateLimiter", function () {
       var counters = [
         RateLimitedCounter({
           redis: client,
-          interval: 500,
+          interval: 300,
           maxInInterval: 15,
         }),
         RateLimitedCounter({
           redis: client,
-          interval: 500,
+          interval: 300,
           maxInInterval: 15,
         })
       ];
@@ -277,13 +282,13 @@ describe("rateLimiter", function () {
         RateLimitedCounter({
           redis: client,
           namespace: namespace,
-          interval: 500,
+          interval: 300,
           maxInInterval: 30,
         }),
         RateLimitedCounter({
           redis: client,
           namespace: namespace,
-          interval: 500,
+          interval: 300,
           maxInInterval: 30,
         })
       ];
@@ -316,10 +321,3 @@ describe("rateLimiter", function () {
 
   });
 });
-
-
-
-
-
-
-
