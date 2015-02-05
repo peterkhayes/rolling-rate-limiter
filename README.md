@@ -26,7 +26,7 @@ This is an implementation of a rate limiter in node.js that allows for rate limi
     minDifference: 100 // optional, in miliseconds
   });
 
-  limiter("userId", function(err, success) {
+  limiter("user1234", function(err, success) {
     // errors if redis connection failed, etc
     if (err) throw err;
 
@@ -55,7 +55,7 @@ This allows multiple processes (e.g. multiple instances of a server application)
     minDifference: 100 // optional, in miliseconds
   });
 
-  limiter("userId", function(err, success) {
+  limiter("user1234", function(err, success) {
     // errors if redis connection failed, etc
     if (err) throw err;
 
