@@ -1,5 +1,5 @@
 # Rolling Rate Limiter
-![Rolling Rate Limiter](https://travis-ci.org/classdojo/rolling-rate-limiter.svg?branch=master)
+[![Build Status](https://travis-ci.org/classdojo/fs-tail.svg?branch=master)](https://travis-ci.org/classdojo/fs-tail)
 
 ## Description
 This is an implementation of a rate limiter in node.js that allows for rate limiting with a rolling window.  This means that if a user is allowed 5 actions per 60 seconds, any action will be blocked if 5 actions have already occured in the preceeding 60 seconds, without any set points at which this interval resets.  This contrasts with many existing implementations, in which a user could make 5 requests at 0:59 and another 5 requests at 1:01.  The implementation uses what I believe to be a novel algorithm, using sorted sets.
