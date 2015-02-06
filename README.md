@@ -6,9 +6,13 @@ This is an implementation of a rate limiter in node.js that allows for rate limi
 
 ## Examples
 
-### In memory
+### In-memory
 ```javascript
   
+  /*
+    Setup:
+  */
+
   var RateLimiter = require("rolling-rate-limiter");
 
   var limiter = RateLimiter({
@@ -17,25 +21,38 @@ This is an implementation of a rate limiter in node.js that allows for rate limi
     minDifference: 100 // optional: the minimum time (in miliseconds) between any two actions
   });
 
-  // First argument should be a unique identifier for a user.
-  // If the limiter does not differentiate between users, pass only a callback.
-  limiter("user1234", function(err, success) {
-    // errors if redis connection failed, etc
-    if (err) throw err;
+  /*
+    Action:
+  */
 
-    if (success) {
+  function attemptAction(userId) {
+
+    // Argument should be a unique identifier for a user if one exists.
+    // If none is provided, the limiter will not differentiate between users.
+    
+    var ok = limiter(userId)
+    if (ok) {
       // limit was not exceeded, action should be allowed
     } else {
       // limit was exceeded, action should not be allowed
     }
-  });
 
+  }
+
+  /*
+    Note that the in-memory version can also operate asynchronously.
+    The syntax is identical to the redis implementation below.
+  */
 ```
 
 ### With a redis backend
 This allows multiple processes (e.g. multiple instances of a server application) to use a single redis to share rate limiter state.  Make sure that the limiters have identical configurations in each instance.
 ```javascript
   
+  /*
+    Setup:
+  */
+
   var RateLimiter = require("rolling-rate-limiter");
   var Redis = require("redis");
   var client = Redis.createClient(config);
@@ -48,7 +65,21 @@ This allows multiple processes (e.g. multiple instances of a server application)
     minDifference: 100
   });
 
-  // operation same as above.
+  /*
+    Action:
+  */
+  
+  function attemptAction(userId, cb) {
+    limiter(userId, function(err, ok) {
+      if (err) {
+        // redis failed or similar.
+      } else if (!ok) {
+        // limit was exceeded, action should not be allowed
+      } else {
+        // limit was not exceeded, action should be allowed
+      }
+    });
+  }
 
 ```
 

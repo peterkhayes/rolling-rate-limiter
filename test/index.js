@@ -11,22 +11,34 @@ var RateLimitedCounter = function(options) {
 
   return {
     increment: function(userId, cb) {
-      if (!cb) {
-        cb = userId;
-        userId = null;
+      var args = Array.prototype.slice.call(arguments);
+      var cb = args.pop();
+      var userId;
+      if (typeof cb === "function") {
+        userId = args[0] || ""
+      } else {
+        userId = cb || "";
+        cb = null;
       }
-      counts[String(userId)] = counts[String(userId)] || 0;
+      counts[userId] = counts[userId] || 0;
       var limit = userId ? rateLimiter.bind(null, userId) : rateLimiter
-      limit(function(err, success) {
+      if (cb) {
+        limit(function(err, success) {
+          if (success) {
+            counts[userId]++;
+          }
+          cb(err);
+        });
+      } else {
+        var success = limit();
         if (success) {
-          counts[String(userId)]++;
+          counts[userId]++;
         }
-        cb(err);
-      });
+      }
     },
 
     getCount: function(userId) {
-      return counts[userId == null ? "null" : userId];
+      return counts[userId || ""];
     }
   };
 
@@ -78,9 +90,73 @@ describe("rateLimiter", function () {
 
   });
 
-  describe("operation with in-memory store", function() {
+  describe("synchronous operation with in-memory store", function() {
 
-    this.timeout(10000);
+    it("prevents requests that exceed the maximum over the interval", function() {
+      var counter = RateLimitedCounter({
+        interval: 300,
+        maxInInterval: 30
+      });
+
+      for (var n = 0; n < 100; n++) {
+        counter.increment();
+      }
+      expect(counter.getCount()).to.equal(30);
+    });
+
+    it("keeps seperate counts for multiple users", function() {
+      var counter = RateLimitedCounter({
+        interval: 300,
+        maxInInterval: 30
+      });
+
+      for (var n = 0; n < 300; n++) {
+        counter.increment(n % 3);
+      }
+      expect(counter.getCount(0)).to.equal(30);
+      expect(counter.getCount(1)).to.equal(30);
+      expect(counter.getCount(2)).to.equal(30);
+    });
+
+
+    it("allows requests after the interval has passed", function(done) {
+      var counter = RateLimitedCounter({
+        interval: 100,
+        maxInInterval: 30
+      });
+
+      for (var n = 0; n < 300; n++) {
+        counter.increment(n % 3);
+      }
+      setTimeout(function() {
+        for (var n = 0; n < 300; n++) {
+          counter.increment(n % 3);
+        } 
+        expect(counter.getCount(0)).to.equal(60);
+        expect(counter.getCount(1)).to.equal(60);
+        expect(counter.getCount(2)).to.equal(60);
+        done();
+      }, 100)
+    });
+
+    it("doesn't allow consecutive requests less than the minDifferent apart", function() {
+      var counter = RateLimitedCounter({
+        interval: 1000000,
+        maxInInterval: 1000,
+        minDifference: 5
+      });
+
+      for (var n = 0; n < 300; n++) {
+        counter.increment(n % 3);
+      }
+      expect(counter.getCount(0)).to.equal(1);
+      expect(counter.getCount(1)).to.equal(1);
+      expect(counter.getCount(2)).to.equal(1);
+    });
+
+  });
+
+  describe("asynchronous operation with in-memory store", function() {
 
     it("prevents requests that exceed the maximum over the interval", function(done) {
       var counter = RateLimitedCounter({
@@ -117,7 +193,7 @@ describe("rateLimiter", function () {
 
     it("allows requests after the interval has passed", function(done) {
       var counter = RateLimitedCounter({
-        interval: 300,
+        interval: 150,
         maxInInterval: 30
       });
 
@@ -135,7 +211,7 @@ describe("rateLimiter", function () {
             expect(counter.getCount(2)).to.equal(60);
             done();
           });
-        }, 500);
+        }, 150);
       });
     });
 
@@ -165,8 +241,6 @@ describe("rateLimiter", function () {
       redis.fast = false;
     });
 
-    this.timeout(10000);
-
     it("prevents requests that exceed the maximum over the interval", function(done) {
       var counter = RateLimitedCounter({
         redis: redis.createClient(),
@@ -205,7 +279,7 @@ describe("rateLimiter", function () {
     it("allows requests after the interval has passed", function(done) {
       var counter = RateLimitedCounter({
         redis: redis.createClient(),
-        interval: 300,
+        interval: 150,
         maxInInterval: 30
       });
 
@@ -223,7 +297,7 @@ describe("rateLimiter", function () {
             expect(counter.getCount(2)).to.equal(60);
             done();
           });
-        }, 300);
+        }, 150);
       });
     });
 

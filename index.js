@@ -51,13 +51,16 @@ function RateLimiter (options) {
       });
     }
   } else {
-    return function (id, cb) {
-      if (!cb) {
-        cb = id;
-        id = "";
+    return function () {
+      var args = Array.prototype.slice.call(arguments);
+      var cb = args.pop();
+      var id;
+      if (typeof cb === "function") {
+        id = args[0] || ""
+      } else {
+        id = cb || "";
+        cb = null;
       }
-      
-      assert.equal(typeof cb, "function", "Callback must be a function.");
       
       var now = microtime.now();
       var key = namespace + id;
@@ -75,12 +78,16 @@ function RateLimiter (options) {
         delete storage[id];
       }, interval);
 
-      return cb(null, !tooManyActionsInInterval && !previousActionTooRecent);
-
+      var result = !tooManyActionsInInterval && !previousActionTooRecent
+      if (cb) {
+        return process.nextTick(function() {
+          cb(null, result);
+        });
+      } else {
+        return result;
+      }
     }
   }
-
-
 };
 
 module.exports = RateLimiter;
