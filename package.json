@@ -25,10 +25,10 @@
   },
   "homepage": "https://github.com/classdojo/rolling-rate-limiter",
   "dependencies": {
-    "microtime-nodejs": "~1.0.0",
-    "fakeredis": "~0.3.0"
+    "microtime-nodejs": "~1.0.0"
   },
   "devDependencies": {
+    "fakeredis": "~0.3.0",
     "sinon": "~1.12.2",
     "chai": "~1.10.0",
     "async": "~0.9.0",
