@@ -143,7 +143,7 @@ describe("rateLimiter", function () {
       var counter = RateLimitedCounter({
         interval: 1000000,
         maxInInterval: 1000,
-        minDifference: 20
+        minDifference: 100
       });
 
       for (var n = 0; n < 300; n++) {
