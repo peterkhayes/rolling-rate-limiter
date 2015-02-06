@@ -23,15 +23,15 @@ var RateLimitedCounter = function(options) {
       counts[userId] = counts[userId] || 0;
       var limit = userId ? rateLimiter.bind(null, userId) : rateLimiter
       if (cb) {
-        limit(function(err, success) {
-          if (success) {
+        limit(function(err, blocked) {
+          if (!blocked) {
             counts[userId]++;
           }
           cb(err);
         });
       } else {
-        var success = limit();
-        if (success) {
+        var blocked = limit();
+        if (!blocked) {
           counts[userId]++;
         }
       }
@@ -152,6 +152,33 @@ describe("rateLimiter", function () {
       expect(counter.getCount(0)).to.equal(1);
       expect(counter.getCount(1)).to.equal(1);
       expect(counter.getCount(2)).to.equal(1);
+    });
+
+    it("returns the time after which actions will be allowed", function() {
+      var limiter1 = RateLimiter({
+        interval: 10000,
+        maxInInterval: 2
+      });
+      var first = limiter1();
+      var second = limiter1();
+      var third = limiter1();
+      
+      expect(first).to.equal(0);
+      expect(second).to.equal(0);
+      expect(third).to.be.above(9900);
+      expect(third).to.be.below(10001);
+
+      var limiter2 = RateLimiter({
+        interval: 10000,
+        maxInInterval: 100,
+        minDifference: 100
+      });
+
+      first = limiter2();
+      second = limiter2();
+      expect(first).to.equal(0);
+      expect(second).to.be.above(90);
+      expect(second).to.be.below(101);
     });
 
   });
@@ -393,5 +420,36 @@ describe("rateLimiter", function () {
       });
     });
 
+    it("returns the time after which actions will be allowed", function(done) {
+      var limiter1 = RateLimiter({
+        redis: redis.createClient(),
+        interval: 10000,
+        maxInInterval: 2
+      });
+      async.times(3, function(n, next) {
+        limiter1(next);
+      }, function(err, results) {
+        expect(results[0]).to.equal(0);
+        expect(results[1]).to.equal(0);
+        expect(results[2]).to.be.above(9900);
+        expect(results[2]).to.be.below(10001);
+
+        // ---
+
+        var limiter2 = RateLimiter({
+          interval: 10000,
+          maxInInterval: 100,
+          minDifference: 100
+        });
+        async.times(3, function(n, next) {
+          limiter2(next);
+        }, function(err, results) {
+          expect(results[0]).to.equal(0);
+          expect(results[1]).to.be.above(90);
+          expect(results[1]).to.be.below(101);
+          done();
+        });
+      });
+    });
   });
 });

@@ -29,12 +29,11 @@ This is an implementation of a rate limiter in node.js that allows for rate limi
 
     // Argument should be a unique identifier for a user if one exists.
     // If none is provided, the limiter will not differentiate between users.
-    
-    var ok = limiter(userId)
-    if (ok) {
-      // limit was not exceeded, action should be allowed
-    } else {
+    var blocked = limiter(userId) 
+    if (blocked) {
       // limit was exceeded, action should not be allowed
+    } else {
+      // limit was not exceeded, action should be allowed
     }
 
   }
@@ -70,10 +69,10 @@ This allows multiple processes (e.g. multiple instances of a server application)
   */
   
   function attemptAction(userId, cb) {
-    limiter(userId, function(err, ok) {
+    limiter(userId, function(err, blocked) {
       if (err) {
         // redis failed or similar.
-      } else if (!ok) {
+      } else if (blocked) {
         // limit was exceeded, action should not be allowed
       } else {
         // limit was not exceeded, action should be allowed
@@ -86,7 +85,6 @@ This allows multiple processes (e.g. multiple instances of a server application)
 ### As a middleware
 You can easily use this module to set up a request rate limiter middleware in Express.
 ```javascript
-
   var limiter = RateLimiter({
     redis: redisClient,
     namespace: "requestRateLimiter",
@@ -98,18 +96,19 @@ You can easily use this module to set up a request rate limiter middleware in Ex
   app.use(function(req, res, next) {
 
     // "req.ipAddress" could be replaced with any unique user identifier
-    limiter(req.ipAddress, function(err, success) {
+    // Note that the limiter returns the number of miliseconds until an action
+    // will be allowed.  Since 0 is falsey, this can be treated as a boolean.
+    limiter(req.ipAddress, function(err, timeLeft) {
       if (err) {
         return res.status(500).send();
-      } else if (!success) {
-        return res.status(429).send();
+      } else if (timeLeft) {
+        return res.status(429).send("You must wait " + timeLeft + " ms before you can make requests.");
       } else {
         return next();
       }
     });
 
   });
-
 ```
 
 ## Method of operation

@@ -14,7 +14,7 @@ function RateLimiter (options) {
 
   // Since we're working in microtime.
   interval *= 1000;
-  minDifference *= 1000;
+  minDifference = minDifference ? 1000*minDifference : null;
 
   if (!options.redis) {
     var storage = {};
@@ -42,12 +42,20 @@ function RateLimiter (options) {
       batch.exec(function (err, resultArr) {
         if (err) return cb(err);
     
-        var oldMembers = resultArr[2].map(Number);
-        var tooManyActionsInInterval = oldMembers.length >= maxInInterval;
-        var previousActionTooRecent = minDifference && (now - oldMembers.pop() < minDifference);
+        var userSet = resultArr[2].map(Number);
 
-        return cb(null, !tooManyActionsInInterval && !previousActionTooRecent);
+        var tooManyInInterval = userSet.length >= maxInInterval;
+        var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
 
+        var result;
+        if (tooManyInInterval || timeSinceLastRequest < minDifference) {
+          result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
+          result = Math.floor(result/1000); // convert from microseconds.
+        } else {
+          result = 0;
+        }
+
+        return cb(null, result)
       });
     }
   } else {
@@ -67,18 +75,25 @@ function RateLimiter (options) {
       var clearBefore = now - interval;
 
       clearTimeout(timeouts[id]);
-      var userStorage = storage[id] = (storage[id] || []).filter(function(timestamp) {
+      var userSet = storage[id] = (storage[id] || []).filter(function(timestamp) {
         return timestamp > clearBefore;
       });
-      
-      var tooManyActionsInInterval = userStorage.length >= maxInInterval;
-      var previousActionTooRecent = minDifference && (now - userStorage[userStorage.length - 1] < minDifference);
-      userStorage.push(now);
+
+      var tooManyInInterval = userSet.length >= maxInInterval;
+      var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
+
+      var result;
+      if (tooManyInInterval || timeSinceLastRequest < minDifference) {
+        result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
+        result = Math.floor(result/1000); // convert from microseconds.
+      } else {
+        result = 0;
+      }
+      userSet.push(now);
       timeouts[id] = setTimeout(function() {
         delete storage[id];
       }, interval);
 
-      var result = !tooManyActionsInInterval && !previousActionTooRecent
       if (cb) {
         return process.nextTick(function() {
           cb(null, result);
