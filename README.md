@@ -29,11 +29,18 @@ This is an implementation of a rate limiter in node.js that allows for rate limi
 
     // Argument should be a unique identifier for a user if one exists.
     // If none is provided, the limiter will not differentiate between users.
-    var blocked = limiter(userId) 
-    if (blocked) {
+    var timeLeft = limiter(userId) 
+    
+    if (timeLeft > 0) {
+
       // limit was exceeded, action should not be allowed
+      // timeLeft is the number of ms until the next action will be allowed
+      // note that this can be treated as a boolean, since 0 is falsy
+    
     } else {
+    
       // limit was not exceeded, action should be allowed
+    
     }
 
   }
@@ -69,10 +76,10 @@ This allows multiple processes (e.g. multiple instances of a server application)
   */
   
   function attemptAction(userId, cb) {
-    limiter(userId, function(err, blocked) {
+    limiter(userId, function(err, timeLeft) {
       if (err) {
         // redis failed or similar.
-      } else if (blocked) {
+      } else if (timeLeft) {
         // limit was exceeded, action should not be allowed
       } else {
         // limit was not exceeded, action should be allowed
