@@ -4,9 +4,9 @@
 ## Description
 This is an implementation of a rate limiter in node.js that allows for rate limiting with a rolling window.  
 
-This means that if a user is allowed 5 actions per 60 seconds, any action will be blocked if 5 actions have already occured in the preceeding 60 seconds, without any set points at which this interval resets.  This contrasts with many existing implementations, in which a user could make 5 requests at 0:59 and another 5 requests at 1:01.
+This means that if a user is allowed 5 actions per 60 seconds, any action will be blocked if 5 actions have already occured in the preceeding 60 seconds, without any set points at which this interval resets.  This contrasts with many existing implementations, in which a user could make 5 requests at 0:59 and another 5 requests at 1:01.  
 
-It can use either in-memory storage or Redis as a backend.  If Redis is used, multiple rate limiters can share one instance with different namespaces, and multiple processes can share rate limiter state safely without race conditions. The implementation uses what I believe to be a novel algorithm, with sorted sets.
+It can use either in-memory storage or Redis as a backend.  If Redis is used, multiple rate limiters can share one instance with different namespaces, and multiple processes can share rate limiter state safely without race conditions. The implementation uses what I believe to be a novel algorithm, with sorted sets.  
 
 ## Examples
 
