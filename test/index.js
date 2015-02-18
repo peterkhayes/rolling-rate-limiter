@@ -451,5 +451,23 @@ describe("rateLimiter", function () {
         });
       });
     });
+
+    it("ttl functions properly", function(done) {
+      var client = redis.createClient();
+      var namespace = Math.random().toString(36).slice(2);
+      var limiter = RateLimiter({
+        redis: client,
+        interval: 10000,
+        maxInInterval: 5,
+        namespace: namespace
+      });
+      limiter("1", function(err, result) {
+        var key = namespace + "1";
+        client.ttl(key, function(err, result) {
+          expect(result).to.equal(10);
+          done();
+        })
+      });
+    });
   });
 });

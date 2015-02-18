@@ -31,14 +31,14 @@ function RateLimiter (options) {
       var clearBefore = now - interval;
 
       var batch = redis.multi();
-      batch.expire(key, Math.ceil(interval/1000000)); // convert seconds, as used by redis ttl.
       batch.zremrangebyscore(key, 0, clearBefore);
       batch.zrange(key, 0, -1);
       batch.zadd(key, now, now);
+      batch.expire(key, Math.ceil(interval/1000000)); // convert to seconds, as used by redis ttl.
       batch.exec(function (err, resultArr) {
         if (err) return cb(err);
     
-        var userSet = resultArr[2].map(Number);
+        var userSet = resultArr[1].map(Number);
 
         var tooManyInInterval = userSet.length >= maxInInterval;
         var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
@@ -46,7 +46,7 @@ function RateLimiter (options) {
         var result;
         if (tooManyInInterval || timeSinceLastRequest < minDifference) {
           result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
-          result = Math.floor(result/1000); // convert from microseconds for user readability.
+          result = Math.floor(result/1000); // convert to miliseconds for user readability.
         } else {
           result = 0;
         }
