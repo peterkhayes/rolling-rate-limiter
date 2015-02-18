@@ -3,18 +3,14 @@ var microtime = require("microtime-nodejs");
 
 function RateLimiter (options) {
   var redis           = options.redis,
-      interval        = options.interval,
+      interval        = options.interval * 1000, // in microseconds
       maxInInterval   = options.maxInInterval,
-      minDifference   = options.minDifference,
+      minDifference   = options.minDifference ? 1000*options.minDifference : null, // also in microseconds
       namespace       = options.namespace || (options.redis && ("rate-limiter-" + Math.random().toString(36).slice(2))) || null;
 
   assert(interval > 0, "Must pass a positive integer for `options.interval`");
   assert(maxInInterval > 0, "Must pass a positive integer for `options.maxInInterval`");
   assert(!(minDifference < 0), "`options.minDifference` cannot be negative");
-
-  // Since we're working in microtime.
-  interval *= 1000;
-  minDifference = minDifference ? 1000*minDifference : null;
 
   if (!options.redis) {
     var storage = {};
@@ -35,7 +31,7 @@ function RateLimiter (options) {
       var clearBefore = now - interval;
 
       var batch = redis.multi();
-      batch.expire(key, interval);
+      batch.expire(key, Math.ceil(interval/1000000)); // convert seconds, as used by redis ttl.
       batch.zremrangebyscore(key, 0, clearBefore);
       batch.zrange(key, 0, -1);
       batch.zadd(key, now, now);
@@ -50,7 +46,7 @@ function RateLimiter (options) {
         var result;
         if (tooManyInInterval || timeSinceLastRequest < minDifference) {
           result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
-          result = Math.floor(result/1000); // convert from microseconds.
+          result = Math.floor(result/1000); // convert from microseconds for user readability.
         } else {
           result = 0;
         }
@@ -85,14 +81,14 @@ function RateLimiter (options) {
       var result;
       if (tooManyInInterval || timeSinceLastRequest < minDifference) {
         result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
-        result = Math.floor(result/1000); // convert from microseconds.
+        result = Math.floor(result/1000); // convert from microseconds for user readability.
       } else {
         result = 0;
       }
       userSet.push(now);
       timeouts[id] = setTimeout(function() {
         delete storage[id];
-      }, interval);
+      }, 1000*interval); // convert to miliseconds for javascript timeout
 
       if (cb) {
         return process.nextTick(function() {
