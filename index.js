@@ -18,12 +18,28 @@ function RateLimiter (options) {
   }
 
   if (redis) {
+    // If redis is going to be potentially returning buffers OR an array from
+    // ZRANGE, need a way to safely convert either of these types to an array
+    // of numbers.  Otherwise, we can just assume that the result is an array
+    // and safely map over it.
+    var zrangeToUserSet;
+    if (redis.options.return_buffers || redis.options.detect_buffers) {
+      zrangeToUserSet = function(str) {
+        return String(str).split(",").map(Number);
+      }
+    } else {
+      zrangeToUserSet = function(arr) {
+        return arr.map(Number);
+      }
+    }
+    
     return function (id, cb) {
       if (!cb) {
         cb = id;
         id = "";
       }
       
+
       assert.equal(typeof cb, "function", "Callback must be a function.");
       
       var now = microtime.now();
@@ -38,7 +54,7 @@ function RateLimiter (options) {
       batch.exec(function (err, resultArr) {
         if (err) return cb(err);
     
-        var userSet = resultArr[1].map(Number);
+        var userSet = zrangeToUserSet(resultArr[1]);
 
         var tooManyInInterval = userSet.length >= maxInInterval;
         var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);

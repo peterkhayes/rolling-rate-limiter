@@ -265,12 +265,33 @@ describe("rateLimiter", function () {
   describe("operation with (mocked) redis", function() {
 
     beforeEach(function() {
-      redis.fast = false;
+      redis.fast = false; // mock redis network latency.
     });
 
     it("prevents requests that exceed the maximum over the interval", function(done) {
+      var client = redis.createClient();
       var counter = RateLimitedCounter({
-        redis: redis.createClient(),
+        redis: client,
+        interval: 300,
+        maxInInterval: 30
+      });
+
+      async.times(100, function(n, next) {
+        counter.increment(next);
+      }, function(err) {
+        if (err) throw err;
+        expect(counter.getCount()).to.equal(30);
+        done();
+      });
+    });
+
+    it("works when redis is in buffer mode", function(done) {
+      var client = redis.createClient({return_buffers: true});
+      // fakeredis seems to hide this option.
+      client.options = {};
+      client.options.return_buffers = true;
+      var counter = RateLimitedCounter({
+        redis: client,
         interval: 300,
         maxInInterval: 30
       });
