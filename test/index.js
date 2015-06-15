@@ -1,7 +1,11 @@
+
+'use strict';
+
 var sinon = require("sinon");
 var expect = require("chai").expect;
 var async = require("async");
 var redis = require("fakeredis");
+var microtime = require("microtime-nodejs");
 
 var RateLimiter = require("../");
 
@@ -117,7 +121,6 @@ describe("rateLimiter", function () {
       expect(counter.getCount(1)).to.equal(30);
       expect(counter.getCount(2)).to.equal(30);
     });
-
 
     it("allows requests after the interval has passed", function(done) {
       var counter = RateLimitedCounter({
@@ -257,6 +260,44 @@ describe("rateLimiter", function () {
         expect(counter.getCount(1)).to.equal(1);
         expect(counter.getCount(2)).to.equal(1);
         done();
+      });
+    });
+
+    it("doesn't ignore interval when minDifference is specified", function(done) {
+      var limiterOptions = {
+        interval: 500,
+        maxInInterval: 1,
+        minDifference: 1
+      };
+
+      var limiter = RateLimiter(limiterOptions);
+
+      limiter(0, function(err, timeLeft) {
+        var start = microtime.now();
+        expect(err).to.be.null;
+        expect(timeLeft).to.equal(0);
+        async.doWhilst(
+          function(callback) {
+            setTimeout(function() {
+              limiter(0, function(err, innerWait) {
+                if (err) {
+                  return callback(err);
+                }
+                timeLeft = innerWait;
+                callback();
+              });
+            }, timeLeft);
+          },
+          function() {
+            return timeLeft !== 0;
+          },
+          function() {
+            var end = microtime.now();
+            //  We use "ceil" to avoid failing when we waited "interval" ms exactly.
+            var durationInMs = Math.ceil((end - start) / 1000);
+            expect(durationInMs).to.be.greaterThan(limiterOptions.interval);
+            done();
+          });
       });
     });
 

@@ -125,9 +125,8 @@ You can easily use this module to set up a request rate limiter middleware in Ex
 ## Method of operation
   * Each identifier/user corresponds to a __sorted set__ data structure.  The keys and values are both equal to the (microsecond) times at which actions were attempted, allowing easy manipulation of this list.
   * When a new action comes in for a user, all elements in the set that occurred earlier than (current time - interval) are dropped from the set. 
-  * If the number of elements in the set is still greater than the maximum, the current action is blocked.
-  * If a minimum difference has been set and the most recent previous element is too close to the current time, the current action is blocked.
+  * If the number of elements in the remaining set is greater than the maximum, the current action is blocked and time to next interval opportunity is returned.
+  * If a minimum difference has been set and the most recent previous element is too close to the current time, the current action is blocked and time to next minimum difference opportunity is returned.
   * The current action is then added to the set.
-  * __Note__: if an action is blocked, it is still added to the set.  This means that if a user is continually attempting actions more quickly than the allowed rate, __all__ of their actions will be blocked until they pause or slow their requests.
   * If the limiter uses a redis instance, the keys are prefixed with namespace, allowing a single redis instance to support separate rate limiters.
   * All redis operations for a single rate-limit check/update are performed as an atomic transaction, allowing rate limiters running on separate processes or machines to share state safely.

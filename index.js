@@ -1,3 +1,4 @@
+var _ = require("lodash");
 var assert = require("assert");
 var microtime = require("microtime-nodejs");
 
@@ -16,6 +17,23 @@ function RateLimiter (options) {
     var storage = {};
     var timeouts = {};
   }
+
+  var getTimeLeft = function(userSet, now) {
+    var tooManyInInterval = userSet.length >= maxInInterval;
+    var timeUntilNextIntervalOpportunity = userSet[0] - now + interval;
+    var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
+
+    var timeLeft;
+    if (tooManyInInterval) {
+      timeLeft = timeUntilNextIntervalOpportunity / 1000;
+    } else if (minDifference && timeSinceLastRequest < minDifference) {
+      var timeUntilNextMinDifferenceOpportunity = minDifference - timeSinceLastRequest;
+      timeLeft = Math.min(timeUntilNextIntervalOpportunity, timeUntilNextMinDifferenceOpportunity);
+      timeLeft = Math.floor(timeLeft / 1000); // convert from microseconds for user readability.
+    }
+
+    return timeLeft;
+  };
 
   if (redis) {
     // If redis is going to be potentially returning buffers OR an array from
@@ -49,6 +67,9 @@ function RateLimiter (options) {
       var batch = redis.multi();
       batch.zremrangebyscore(key, 0, clearBefore);
       batch.zrange(key, 0, -1);
+      //  Add the now timestamp to the set in the batch then revert this operation later if needed.
+      //  This prevents the race condition between set indicating rate limit not reached
+      //  and too many (> maxInInterval) clients querying the state.
       batch.zadd(key, now, now);
       batch.expire(key, Math.ceil(interval/1000000)); // convert to seconds, as used by redis ttl.
       batch.exec(function (err, resultArr) {
@@ -56,18 +77,17 @@ function RateLimiter (options) {
     
         var userSet = zrangeToUserSet(resultArr[1]);
 
-        var tooManyInInterval = userSet.length >= maxInInterval;
-        var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
+        var timeLeft = getTimeLeft(userSet, now);
 
-        var result;
-        if (tooManyInInterval || timeSinceLastRequest < minDifference) {
-          result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
-          result = Math.floor(result/1000); // convert to miliseconds for user readability.
+        if (_.isUndefined(timeLeft)) {
+          cb(err, 0);
         } else {
-          result = 0;
+          //  Remove the now element from the set as it should only
+          //  hold the timestamps for passed operations.
+          redis.zrem(key, now, now, function(err) {
+            cb(err, timeLeft);
+          });
         }
-
-        return cb(null, result)
       });
     }
   } else {
@@ -81,7 +101,7 @@ function RateLimiter (options) {
         id = cb || "";
         cb = null;
       }
-      
+
       var now = microtime.now();
       var key = namespace + id;
       var clearBefore = now - interval;
@@ -91,27 +111,22 @@ function RateLimiter (options) {
         return timestamp > clearBefore;
       });
 
-      var tooManyInInterval = userSet.length >= maxInInterval;
-      var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
+      var timeLeft = getTimeLeft(userSet, now);
 
-      var result;
-      if (tooManyInInterval || timeSinceLastRequest < minDifference) {
-        result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
-        result = Math.floor(result/1000); // convert from microseconds for user readability.
-      } else {
-        result = 0;
+      if (_.isUndefined(timeLeft)) {
+        userSet.push(now);
+        timeouts[id] = setTimeout(function() {
+          delete storage[id];
+        }, interval / 1000); // convert to miliseconds for javascript timeout
+        timeLeft = 0;
       }
-      userSet.push(now);
-      timeouts[id] = setTimeout(function() {
-        delete storage[id];
-      }, 1000*interval); // convert to miliseconds for javascript timeout
 
       if (cb) {
         return process.nextTick(function() {
-          cb(null, result);
+          cb(null, timeLeft);
         });
       } else {
-        return result;
+        return timeLeft;
       }
     }
   }
