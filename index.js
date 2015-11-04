@@ -104,7 +104,7 @@ function RateLimiter (options) {
       userSet.push(now);
       timeouts[id] = setTimeout(function() {
         delete storage[id];
-      }, 1000*interval); // convert to miliseconds for javascript timeout
+      }, interval/1000); // convert to miliseconds for javascript timeout
 
       if (cb) {
         return process.nextTick(function() {
