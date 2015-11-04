@@ -9,7 +9,6 @@ function RateLimiter (options) {
       namespace       = options.namespace || (options.redis && ("rate-limiter-" + Math.random().toString(36).slice(2))) || null,
       storeBlocked    = options.storeBlocked || true;
 
-      console.log(storeBlocked);
   assert(interval > 0, "Must pass a positive integer for `options.interval`");
   assert(maxInInterval > 0, "Must pass a positive integer for `options.maxInInterval`");
   assert(!(minDifference < 0), "`options.minDifference` cannot be negative");
@@ -51,8 +50,10 @@ function RateLimiter (options) {
       var batch = redis.multi();
       batch.zremrangebyscore(key, 0, clearBefore);
       batch.zrange(key, 0, -1);
-      batch.zadd(key, now, now);
-      batch.expire(key, Math.ceil(interval/1000000)); // convert to seconds, as used by redis ttl.
+      if(!storeBlocked) {
+            batch.zadd(key, now, now);
+            batch.expire(key, Math.ceil(interval/1000000)); // convert to seconds, as used by redis ttl.
+      }
       batch.exec(function (err, resultArr) {
         if (err) return cb(err);
     
@@ -65,6 +66,13 @@ function RateLimiter (options) {
         if (tooManyInInterval || timeSinceLastRequest < minDifference) {
           result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
           result = Math.floor(result/1000); // convert to miliseconds for user readability.
+          if(storeBlocked) {
+            batch.zadd(key, now, now);
+            batch.expire(key, Math.ceil(interval/1000000)); // convert to seconds, as used by redis ttl.
+            batch.exec(function (err, resultArr) {
+              if (err) return cb(err);
+            }
+          }
         } else {
           result = 0;
         }
