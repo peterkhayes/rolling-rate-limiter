@@ -6,8 +6,10 @@ function RateLimiter (options) {
       interval        = options.interval * 1000, // in microseconds
       maxInInterval   = options.maxInInterval,
       minDifference   = options.minDifference ? 1000*options.minDifference : null, // also in microseconds
-      namespace       = options.namespace || (options.redis && ("rate-limiter-" + Math.random().toString(36).slice(2))) || null;
+      namespace       = options.namespace || (options.redis && ("rate-limiter-" + Math.random().toString(36).slice(2))) || null,
+      storeBlocked    = options.storeBlocked || true;
 
+      console.log(storeBlocked);
   assert(interval > 0, "Must pass a positive integer for `options.interval`");
   assert(maxInInterval > 0, "Must pass a positive integer for `options.maxInInterval`");
   assert(!(minDifference < 0), "`options.minDifference` cannot be negative");
@@ -98,10 +100,14 @@ function RateLimiter (options) {
       if (tooManyInInterval || timeSinceLastRequest < minDifference) {
         result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
         result = Math.floor(result/1000); // convert from microseconds for user readability.
+        if(storeBlocked) {
+          userSet.push(now);
+        }
       } else {
         result = 0;
+        userSet.push(now);
       }
-      userSet.push(now);
+
       timeouts[id] = setTimeout(function() {
         delete storage[id];
       }, interval/1000); // convert to miliseconds for javascript timeout
