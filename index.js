@@ -59,15 +59,17 @@ function RateLimiter (options) {
         var tooManyInInterval = userSet.length >= maxInInterval;
         var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
 
-        var result;
+        var result, remaining;
         if (tooManyInInterval || timeSinceLastRequest < minDifference) {
           result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
           result = Math.floor(result/1000); // convert to miliseconds for user readability.
+          remaining = -1;
         } else {
+          remaining = maxInInterval - userSet.length - 1;
           result = 0;
         }
 
-        return cb(null, result)
+        return cb(null, result, remaining)
       });
     }
   } else {
@@ -94,11 +96,13 @@ function RateLimiter (options) {
       var tooManyInInterval = userSet.length >= maxInInterval;
       var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
 
-      var result;
+      var result, remaining;
       if (tooManyInInterval || timeSinceLastRequest < minDifference) {
         result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
         result = Math.floor(result/1000); // convert from microseconds for user readability.
+        remaining = -1;
       } else {
+        remaining = maxInInterval - userSet.length - 1;
         result = 0;
       }
       userSet.push(now);
@@ -108,7 +112,7 @@ function RateLimiter (options) {
 
       if (cb) {
         return process.nextTick(function() {
-          cb(null, result);
+          cb(null, result, remaining);
         });
       } else {
         return result;
