@@ -1,4 +1,3 @@
-var sinon = require("sinon");
 var expect = require("chai").expect;
 var async = require("async");
 var redis = require("fakeredis");
@@ -10,18 +9,18 @@ var RateLimitedCounter = function(options) {
   var counts = {};
 
   return {
-    increment: function(userId, cb) {
+    increment: function() {
       var args = Array.prototype.slice.call(arguments);
       var cb = args.pop();
       var userId;
       if (typeof cb === "function") {
-        userId = args[0] || ""
+        userId = args[0] || "";
       } else {
         userId = cb || "";
         cb = null;
       }
       counts[userId] = counts[userId] || 0;
-      var limit = userId ? rateLimiter.bind(null, userId) : rateLimiter
+      var limit = userId ? rateLimiter.bind(null, userId) : rateLimiter;
       if (cb) {
         limit(function(err, blocked) {
           if (!blocked) {
@@ -136,7 +135,7 @@ describe("rateLimiter", function () {
         expect(counter.getCount(1)).to.equal(60);
         expect(counter.getCount(2)).to.equal(60);
         done();
-      }, 100)
+      }, 100);
     });
 
     it("doesn't allow consecutive requests less than the minDifferent apart", function() {

@@ -1,6 +1,6 @@
 {
   "name": "rolling-rate-limiter",
-  "version": "0.2.0",
+  "version": "0.1.4",
   "description": "Rate limiter that supports a rolling window, either in-memory or backed by redis",
   "main": "index.js",
   "scripts": {
@@ -31,7 +31,6 @@
     "fakeredis": "~0.3.0",
     "chai": "~1.10.0",
     "async": "~0.9.0",
-    "mocha": "~2.1.0",
-    "redis": "~0.12.1"
+    "mocha": "~2.1.0"
   }
 }
