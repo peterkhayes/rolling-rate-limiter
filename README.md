@@ -80,7 +80,7 @@ This allows multiple processes (e.g. multiple instances of a server application)
   */
   
   function attemptAction(userId, cb) {
-    limiter(userId, function(err, timeLeft) {
+    limiter(userId, function(err, timeLeft, actionsLeft) {
       if (err) {
         // redis failed or similar.
       } else if (timeLeft) {

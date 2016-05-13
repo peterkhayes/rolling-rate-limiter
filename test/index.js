@@ -56,7 +56,7 @@ describe("rateLimiter", function () {
         maxInInterval: 5,
         minDifference: 500,
         namespace: "MyNamespace"
-      }
+      };
     });
 
     it("throws if interval is missing", function() {
