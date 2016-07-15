@@ -21,7 +21,7 @@ It can use either in-memory storage or Redis as a backend.  If Redis is used, mu
 
   var limiter = RateLimiter({
     interval: 1000 // in miliseconds
-    maxInInterval: 10
+    maxInInterval: 10,
     minDifference: 100 // optional: the minimum time (in miliseconds) between any two actions
   });
 
@@ -69,9 +69,9 @@ This allows multiple processes (e.g. multiple instances of a server application)
 
   var limiter = RateLimiter({
     redis: client,
-    namespace: "UserLoginLimiter" // optional: allows one redis instance to handle multiple types of rate limiters. defaults to "rate-limiter-{string of 8 random characters}"
-    interval: 1000
-    maxInInterval: 10
+    namespace: "UserLoginLimiter", // optional: allows one redis instance to handle multiple types of rate limiters. defaults to "rate-limiter-{string of 8 random characters}"
+    interval: 1000,
+    maxInInterval: 10,
     minDifference: 100
   });
 
