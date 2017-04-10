@@ -66,17 +66,20 @@ function RateLimiter (options) {
           var maxInInterval = limit.maxInInterval;
           var interval = limit.interval;
           var userSet = zrangeToUserSet(resultArr[i * 4 + 1]);
-          var tooManyInInterval = userSet.length >= maxInInterval;
-          var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
-          
+
           var result, remaining;
-          
-          if (tooManyInInterval || timeSinceLastRequest < minDifference) {
-            result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
-            remaining = -1;
-          } else {
-            result = 0;
+          var timeSinceLastRequest = now - userSet[userSet.length - 1];
+          var tooManyInInterval = userSet.length >= maxInInterval;
+          var cooldownSinceLastRequest = Math.max(minDifference && timeSinceLastRequest ? minDifference - timeSinceLastRequest : 0, 0)
+          if (!tooManyInInterval && cooldownSinceLastRequest === 0) {
             remaining = maxInInterval - userSet.length - 1;
+            result = 0;
+          } else if (!tooManyInInterval) {
+            remaining = -1;
+            result = cooldownSinceLastRequest;
+          } else {
+            remaining = -1;
+            result = Math.max(userSet[0] - now + interval, cooldownSinceLastRequest)  
           }
           
           if (!worst || worst.remaining > remaining || worst.result < result ) {
@@ -117,16 +120,19 @@ function RateLimiter (options) {
           return timestamp > clearBefore;
         })
         
-        var tooManyInInterval = userSet.length >= maxInInterval;
-        var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
-        
         var result, remaining;
-        if (tooManyInInterval || timeSinceLastRequest < minDifference) {
-          result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
-          remaining = -1;
-        } else {
+        var timeSinceLastRequest = now - userSet[userSet.length - 1];
+        var tooManyInInterval = userSet.length >= maxInInterval;
+        var cooldownSinceLastRequest = Math.max(minDifference && timeSinceLastRequest ? minDifference - timeSinceLastRequest : 0, 0)
+        if (!tooManyInInterval && cooldownSinceLastRequest === 0) {
           remaining = maxInInterval - userSet.length - 1;
           result = 0;
+        } else if (!tooManyInInterval) {
+          remaining = -1;
+          result = cooldownSinceLastRequest;
+        } else {
+          remaining = -1;
+          result = Math.max(userSet[0] - now + interval, cooldownSinceLastRequest)  
         }
         
         userSet.push(now);
@@ -141,7 +147,7 @@ function RateLimiter (options) {
             index: i
           }
         }
-        return worst;
+        return worst
       }, undefined);
       
       worstMatch.result = worstMatch.result / 1000 // convert from microseconds for user readability.

@@ -184,7 +184,6 @@ describe("rateLimiter", function () {
       expect(counter.getCount(2)).to.equal(30);
     });
 
-
     it("allows requests after the interval has passed", function(done) {
       var counter = RateLimitedCounter({
         interval: 100,
