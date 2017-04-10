@@ -121,6 +121,34 @@ You can easily use this module to set up a request rate limiter middleware in Ex
 
   });
 ```
+### Multiple limits
+You can specify multiple limits. The benefit of this opposed to composing multiple rate limiter instances is that this way, the whole state will be updated in a single redis transaction atomically. `timeLeft` is the time  you have to wait for all limits to expire, or the minimum number of actions left. E.g. to disallow a hourly rate limit to be sent in a single minute:
+```javascript
+  var limiter = RateLimiter({
+    redis: redisClient,
+    namespace: "requestRateLimiter",
+    limits: [{
+      interval: 60 * 60 000,
+      maxInInterval: 1000 // max 1000 request / hour
+    }, {
+      interval: 60 000,
+      maxInInterval: 100 // max 100 request / minute
+    }]
+  });
+
+  function attemptAction(userId, cb) {
+    limiter(userId, function(err, timeLeft, actionsLeft) {
+      if (err) {
+        // redis failed or similar.
+      } else if (timeLeft) {
+        // limit was exceeded, action should not be allowed
+      } else {
+        // limit was not exceeded, action should be allowed
+      }
+    });
+  }
+```
+ 
 
 ## Method of operation
   * Each identifier/user corresponds to a __sorted set__ data structure.  The keys and values are both equal to the (microsecond) times at which actions were attempted, allowing easy manipulation of this list.

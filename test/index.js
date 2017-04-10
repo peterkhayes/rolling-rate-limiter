@@ -45,48 +45,115 @@ var RateLimitedCounter = function(options) {
 
 describe("rateLimiter", function () {
 
-  describe("options validation", function() {
+  describe("options", function() {
     
-    var options;
+    describe("single", function() {
+      var options, multiOptions;
+      
+      beforeEach(function() {
+        options = {
+          interval: 10000,
+          maxInInterval: 5,
+          minDifference: 500,
+          namespace: "MyNamespace"
+        };
+        multiOptions = {
+          namespace: "MyNamespace",
+          limits: [{
+            interval: 10000,
+            maxInInterval: 5,
+            minDifference: 500
+          }, {
+            interval: 100000,
+            maxInInterval: 25
+          }]
+        };
+        
+      });
+      
+      it("throws if interval is missing", function() {
+        delete options.interval;
+        expect(RateLimiter.bind(null, options)).to.throw();
+      });
+
+      it("throws if maxInInterval is missing", function() {
+        delete options.maxInInterval;
+        expect(RateLimiter.bind(null, options)).to.throw();
+      });
+
+      it("throws if interval is non-positive", function() {
+        options.interval = -1;
+        expect(RateLimiter.bind(null, options)).to.throw();
+      });
+
+      it("throws if maxInInterval is non-positive", function() {
+        options.maxInInterval = -1;
+        expect(RateLimiter.bind(null, options)).to.throw();
+      });
+
+      it("throws if minDifference is non-positive", function() {
+        options.minDifference = -1;
+        expect(RateLimiter.bind(null, options)).to.throw();
+      });
+
+      it("passes with good options", function() {
+        expect(RateLimiter.bind(null, options)).to.not.throw();
+      });
+      
+    })
     
-    beforeEach(function() {
-      options = {
-        interval: 10000,
-        maxInInterval: 5,
-        minDifference: 500,
-        namespace: "MyNamespace"
-      };
-    });
+    describe("multi", function() {
+      var options;
+      
+      beforeEach(function() {
+        options = {
+          namespace: "MyNamespace",
+          limits: [{
+            interval: 10000,
+            maxInInterval: 5,
+            minDifference: 500
+          }, {
+            interval: 100000,
+            maxInInterval: 25
+          }]
+        };
+        
+      });
+      
+      it("throws if array is empty", function() {
+        options.limits = [];
+        expect(RateLimiter.bind(null, options)).to.throw();
+      });
+      
+      it("throws if interval is missing", function() {
+        delete options.limits[1].interval;
+        expect(RateLimiter.bind(null, options)).to.throw();
+      });
 
-    it("throws if interval is missing", function() {
-      delete options.interval;
-      expect(RateLimiter.bind(null, options)).to.throw();
-    });
+      it("throws if maxInInterval is missing", function() {
+        delete options.limits[1].maxInInterval;
+        expect(RateLimiter.bind(null, options)).to.throw();
+      });
 
-    it("throws if maxInInterval is missing", function() {
-      delete options.maxInInterval;
-      expect(RateLimiter.bind(null, options)).to.throw();
-    });
+      it("throws if interval is non-positive", function() {
+        options.limits[1].interval = -1;
+        expect(RateLimiter.bind(null, options)).to.throw();
+      });
 
-    it("throws if interval is non-positive", function() {
-      options.interval = -1;
-      expect(RateLimiter.bind(null, options)).to.throw();
-    });
+      it("throws if maxInInterval is non-positive", function() {
+        options.limits[1].maxInInterval = -1;
+        expect(RateLimiter.bind(null, options)).to.throw();
+      });
 
-    it("throws if maxInInterval is non-positive", function() {
-      options.maxInInterval = -1;
-      expect(RateLimiter.bind(null, options)).to.throw();
-    });
+      it("throws if minDifference is non-positive", function() {
+        options.limits[0].minDifference = -1;
+        expect(RateLimiter.bind(null, options)).to.throw();
+      });
 
-    it("throws if minDifference is non-positive", function() {
-      options.minDifference = -1;
-      expect(RateLimiter.bind(null, options)).to.throw();
-    });
-
-    it("passes with good options", function() {
-      expect(RateLimiter.bind(null, options)).to.not.throw();
-    });
-
+      it("passes with good options", function() {
+        expect(RateLimiter.bind(null, options)).to.not.throw();
+      });
+    })
   });
 
   describe("synchronous operation with in-memory store", function() {
@@ -179,7 +246,41 @@ describe("rateLimiter", function () {
       expect(second).to.be.above(90);
       expect(second).to.be.below(101);
     });
+    
+    it("returns the time as the maximum of the limits", function() {
+      var limiter1 = RateLimiter({
+        limits: [{
+          interval: 10000,
+          maxInInterval: 2
+        }, {
+          interval: 100000,
+          maxInInterval: 2
+        }]
+      });
+      var first = limiter1();
+      var second = limiter1();
+      var third = limiter1();
+      
+      expect(first).to.equal(0);
+      expect(second).to.equal(0);
+      expect(third).to.be.above(99900);
+      expect(third).to.be.below(100001);
 
+      var limiter2 = RateLimiter({
+        interval: 100000,
+        maxInInterval: 100000,
+        minDifference: 100
+      }, {
+        interval: 10,
+        maxInInterval: 10
+      });
+
+      first = limiter2();
+      second = limiter2();
+      expect(first).to.equal(0);
+      expect(second).to.be.above(90);
+      expect(second).to.be.below(101);
+    });
   });
 
   describe("asynchronous operation with in-memory store", function() {
@@ -460,6 +561,49 @@ describe("rateLimiter", function () {
           interval: 10000,
           maxInInterval: 100,
           minDifference: 100
+        });
+        async.times(3, function(n, next) {
+          limiter2(next);
+        }, function(err, results) {
+          expect(results[0]).to.equal(0);
+          expect(results[1]).to.be.above(90);
+          expect(results[1]).to.be.below(101);
+          done();
+        });
+      });
+    });
+
+    it("returns the time as the maximum of the limits", function(done) {
+      var limiter1 = RateLimiter({
+        redis: redis.createClient(),
+        limits: [{
+          interval: 10000,
+          maxInInterval: 2
+        }, {
+          interval: 100000,
+          maxInInterval: 2
+        }]
+      });
+      async.times(3, function(n, next) {
+        limiter1(next);
+      }, function(err, results) {
+        expect(results[0]).to.equal(0);
+        expect(results[1]).to.equal(0);
+        expect(results[2]).to.be.above(99900);
+        expect(results[2]).to.be.below(100001);
+
+        // ---
+
+        var limiter2 = RateLimiter({
+          redis: redis.createClient(),
+          limits: [{
+            interval: 100000,
+            maxInInterval: 100000,
+            minDifference: 100
+          }, {
+            interval: 10,
+            maxInInterval: 10
+          }]
         });
         async.times(3, function(n, next) {
           limiter2(next);
