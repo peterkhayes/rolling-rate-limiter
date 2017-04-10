@@ -57,11 +57,11 @@ function RateLimiter (options) {
         var userSet = zrangeToUserSet(resultArr[1]);
 
         var tooManyInInterval = userSet.length >= maxInInterval;
-        var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
+        var timeSinceLastRequest = now - userSet[userSet.length - 1];
 
         var result, remaining;
         if (tooManyInInterval || timeSinceLastRequest < minDifference) {
-          result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
+          result = Math.max(userSet[userSet.length - maxInInterval] - now + interval, minDifference ? timeSinceLastRequest + minDifference : 0);
           result = Math.floor(result / 1000); // convert to miliseconds for user readability.
           remaining = -1;
         } else {
@@ -93,11 +93,11 @@ function RateLimiter (options) {
       });
 
       var tooManyInInterval = userSet.length >= maxInInterval;
-      var timeSinceLastRequest = minDifference && (now - userSet[userSet.length - 1]);
+      var timeSinceLastRequest = now - userSet[userSet.length - 1];
 
       var result, remaining;
       if (tooManyInInterval || timeSinceLastRequest < minDifference) {
-        result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
+        result = Math.max(userSet[userSet.length - maxInInterval] - now + interval, minDifference ? timeSinceLastRequest + minDifference : 0);
         result = Math.floor(result / 1000); // convert from microseconds for user readability.
         remaining = -1;
       } else {
