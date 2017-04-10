@@ -26,20 +26,24 @@ function RateLimiter (options) {
     var zrangeToUserSet;
     if (redis.options.return_buffers || redis.options.detect_buffers) {
       zrangeToUserSet = function(str) {
-        return String(str).split(",").map(Number);
+        return String(str).split(",");
       };
     } else {
       zrangeToUserSet = function(arr) {
-        return arr.map(Number);
+        return arr;
       };
     }
     
-    return function (id, cb) {
-      if (!cb) {
+    return function (id, increment, cb) {
+      if (!increment && !cb) {
         cb = id;
+        increment = 1;
         id = "";
+      } else if (!cb) {
+        cb = increment;
+        increment = 1;
       }
-
+      assert(increment > 0, "`increment` must be a positive integer");
       assert.equal(typeof cb, "function", "Callback must be a function.");
       
       var now = microtime.now();
@@ -52,34 +56,41 @@ function RateLimiter (options) {
         var key = namespace + id + (i ? "__" + i : ""); // remain compatible with former versions
         var clearBefore = now - interval;
         batch.zremrangebyscore(key, 0, clearBefore);
-        batch.zrange(key, 0, -1);
-        batch.zadd(key, now, now);
+        batch.zrange(key, 0, -1, 'WITHSCORES');
+        batch.zadd(key, now, now + "/" + increment);
         batch.expire(key, Math.ceil(interval / 1000000)); // convert to seconds, as used by redis ttl.
         return key;
       });
 
       batch.exec(function (err, resultArr) {
         if (err) return cb(err);
-        
         var worstMatch = limits.reduce(function (worst, limit, i) {
           var minDifference = limit.minDifference;
           var maxInInterval = limit.maxInInterval;
           var interval = limit.interval;
           var userSet = zrangeToUserSet(resultArr[i * 4 + 1]);
-
+          
+          var count = userSet.reduce(function (acc, n, i) {
+            if (i % 2 === 0) {
+              var c = (n.split("/")[1] || 1); // get optional count suffix, backward compatible
+              return acc + (1 - (i % 2)) * c; // sum even
+            }
+            return acc;
+          }, 0);
+        
           var result, remaining;
-          var timeSinceLastRequest = now - userSet[userSet.length - 1];
-          var tooManyInInterval = userSet.length >= maxInInterval;
+          var timeSinceLastRequest = userSet.length ? now - userSet[userSet.length - 1] : 0;
+          var tooManyInInterval = count + increment > maxInInterval;
           var cooldownSinceLastRequest = Math.max(minDifference && timeSinceLastRequest ? minDifference - timeSinceLastRequest : 0, 0)
           if (!tooManyInInterval && cooldownSinceLastRequest === 0) {
-            remaining = maxInInterval - userSet.length - 1;
+            remaining = maxInInterval - (userSet.length / 2) - increment;
             result = 0;
           } else if (!tooManyInInterval) {
             remaining = -1;
             result = cooldownSinceLastRequest;
           } else {
             remaining = -1;
-            result = Math.max(userSet[0] - now + interval, cooldownSinceLastRequest)  
+            result = Math.max(userSet[1] - now + interval, cooldownSinceLastRequest)  
           }
           
           if (!worst || worst.remaining > remaining || worst.result < result ) {
@@ -99,13 +110,27 @@ function RateLimiter (options) {
     return function () {
       var args = Array.prototype.slice.call(arguments);
       var cb = args.pop();
-      var id;
-      if (typeof cb === "function") {
-        id = args[0] || "";
-      } else {
+      var increment = args.pop();
+      var id = args.pop();
+      var increment, id;
+
+      if (typeof cb === "function" && cb === arguments[0]) {
+        id = "";
+        increment = 1;
+      } else if (typeof cb === "function" && cb === arguments[1]) {
+        id = increment;
+        increment = 1;
+      } else if (typeof cb !== "function" && id != null) {
+        id = increment;
+        increment = cb;
+        cb = null;
+      } else if (typeof cb !== "function") {
         id = cb || "";
         cb = null;
+        increment = 1;
       }
+      
+      assert(increment > 0, "`increment` must be a positive integer");
       
       var now = microtime.now();
       
@@ -116,26 +141,30 @@ function RateLimiter (options) {
         var key = id + (i ? "__" + i : ""); // remain compatible with former versions
         clearTimeout(timeouts[key]);
         var clearBefore = now - interval;
-        var userSet = storage[key] = (storage[key] || []).filter(function(timestamp) {
-          return timestamp > clearBefore;
+        var userSet = storage[key] = (storage[key] || []).filter(function(item) {
+          return item[0] > clearBefore;
         })
         
+        var count = userSet.reduce(function (sum, item) {
+          return sum + item[1];
+        }, 0);
+        
         var result, remaining;
-        var timeSinceLastRequest = now - userSet[userSet.length - 1];
-        var tooManyInInterval = userSet.length >= maxInInterval;
+        var timeSinceLastRequest = userSet.length ? now - userSet[userSet.length - 1][0] : 0;
+        var tooManyInInterval = count + increment > maxInInterval;
         var cooldownSinceLastRequest = Math.max(minDifference && timeSinceLastRequest ? minDifference - timeSinceLastRequest : 0, 0)
         if (!tooManyInInterval && cooldownSinceLastRequest === 0) {
-          remaining = maxInInterval - userSet.length - 1;
+          remaining = maxInInterval - count - increment;
           result = 0;
         } else if (!tooManyInInterval) {
           remaining = -1;
           result = cooldownSinceLastRequest;
         } else {
           remaining = -1;
-          result = Math.max(userSet[0] - now + interval, cooldownSinceLastRequest)  
+          result = Math.max(userSet[0][0] - now + interval, cooldownSinceLastRequest)  
         }
         
-        userSet.push(now);
+        userSet.push([now, increment]);
         timeouts[key] = setTimeout(function () {
           delete storage[key];
         }, interval / 1000); // convert to milliseconds for javascript timeout

@@ -422,7 +422,6 @@ describe("rateLimiter", function () {
       });
     });
 
-
     it("allows requests after the interval has passed", function(done) {
       var counter = RateLimitedCounter({
         redis: redis.createClient(),
