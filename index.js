@@ -61,7 +61,7 @@ function RateLimiter (options) {
 
         var result, remaining;
         if (tooManyInInterval || timeSinceLastRequest < minDifference) {
-          result = Math.max(tooManyInInterval ? userSet[userSet.length - maxInInterval] - now + interval : 0, minDifference ? timeSinceLastRequest + minDifference : 0);
+          result = Math.max(tooManyInInterval ? userSet[userSet.length - maxInInterval] - now + interval : 0, minDifference ? minDifference : 0);
           result = Math.floor(result / 1000); // convert to miliseconds for user readability.
           remaining = -1;
         } else {
@@ -97,7 +97,7 @@ function RateLimiter (options) {
 
       var result, remaining;
       if (tooManyInInterval || timeSinceLastRequest < minDifference) {
-        result = Math.max(tooManyInInterval ? userSet[userSet.length - maxInInterval] - now + interval : 0, minDifference ? timeSinceLastRequest + minDifference : 0);
+        result = Math.max(tooManyInInterval ? userSet[userSet.length - maxInInterval] - now + interval : 0, minDifference ? minDifference : 0);
         result = Math.floor(result / 1000); // convert from microseconds for user readability.
         remaining = -1;
       } else {
