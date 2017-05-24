@@ -32,16 +32,16 @@ function RateLimiter (options) {
         return arr.map(Number);
       };
     }
-    
+
     return function (id, cb) {
       if (!cb) {
         cb = id;
         id = "";
       }
-      
+
 
       assert.equal(typeof cb, "function", "Callback must be a function.");
-      
+
       var now = microtime.now();
       var key = namespace + id;
       var clearBefore = now - interval;
@@ -53,7 +53,7 @@ function RateLimiter (options) {
       batch.expire(key, Math.ceil(interval / 1000000)); // convert to seconds, as used by redis ttl.
       batch.exec(function (err, resultArr) {
         if (err) return cb(err);
-    
+
         var userSet = zrangeToUserSet(resultArr[1]);
 
         var tooManyInInterval = userSet.length >= maxInInterval;
@@ -61,7 +61,7 @@ function RateLimiter (options) {
 
         var result;
         var remaining = maxInInterval - userSet.length - 1;
-		
+
         if (tooManyInInterval || timeSinceLastRequest < minDifference) {
           result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
           result = Math.floor(result / 1000); // convert to miliseconds for user readability.
@@ -83,11 +83,13 @@ function RateLimiter (options) {
         id = cb || "";
         cb = null;
       }
-      
+
       var now = microtime.now();
       var clearBefore = now - interval;
 
       clearTimeout(timeouts[id]);
+      delete timeouts[id];
+
       var userSet = storage[id] = (storage[id] || []).filter(function(timestamp) {
         return timestamp > clearBefore;
       });
@@ -97,7 +99,7 @@ function RateLimiter (options) {
 
       var result;
       var remaining = maxInInterval - userSet.length - 1;
-      
+
       if (tooManyInInterval || timeSinceLastRequest < minDifference) {
         result = Math.min(userSet[0] - now + interval, minDifference ? minDifference - timeSinceLastRequest : Infinity);
         result = Math.floor(result / 1000); // convert from microseconds for user readability.
@@ -107,6 +109,7 @@ function RateLimiter (options) {
       userSet.push(now);
       timeouts[id] = setTimeout(function() {
         delete storage[id];
+        delete timeouts[id];
       }, interval / 1000); // convert to miliseconds for javascript timeout
 
       if (cb) {
