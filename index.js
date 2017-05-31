@@ -3,10 +3,10 @@ var microtime = require("microtime-nodejs");
 
 function RateLimiter (options) {
   var redis           = options.redis,
-      interval        = options.interval * 1000, // in microseconds
-      maxInInterval   = options.maxInInterval,
-      minDifference   = options.minDifference ? 1000 * options.minDifference : null, // also in microseconds
-      namespace       = options.namespace || (options.redis && ("rate-limiter-" + Math.random().toString(36).slice(2))) || null;
+    interval        = options.interval * 1000, // in microseconds
+    maxInInterval   = options.maxInInterval,
+    minDifference   = options.minDifference ? 1000 * options.minDifference : null, // also in microseconds
+    namespace       = options.namespace || (options.redis && (`rate-limiter-${ Math.random().toString(36).slice(2)}`)) || null;
 
   assert(interval > 0, "Must pass a positive integer for `options.interval`");
   assert(maxInInterval > 0, "Must pass a positive integer for `options.maxInInterval`");
@@ -33,7 +33,7 @@ function RateLimiter (options) {
       };
     }
 
-    return function (id, cb) {
+    return function(id, cb) {
       if (!cb) {
         cb = id;
         id = "";
@@ -51,7 +51,7 @@ function RateLimiter (options) {
       batch.zrange(key, 0, -1);
       batch.zadd(key, now, now);
       batch.expire(key, Math.ceil(interval / 1000000)); // convert to seconds, as used by redis ttl.
-      batch.exec(function (err, resultArr) {
+      batch.exec(function(err, resultArr) {
         if (err) return cb(err);
 
         var userSet = zrangeToUserSet(resultArr[1]);
@@ -73,7 +73,7 @@ function RateLimiter (options) {
       });
     };
   } else {
-    return function () {
+    return function() {
       var args = Array.prototype.slice.call(arguments);
       var cb = args.pop();
       var id;

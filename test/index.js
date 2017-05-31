@@ -1,18 +1,18 @@
-var expect = require("chai").expect;
-var async = require("async");
-var redis = require("fakeredis");
+const expect = require("chai").expect;
+const async = require("async");
+const redis = require("fakeredis");
 
-var RateLimiter = require("../");
+const RateLimiter = require("../");
 
-var RateLimitedCounter = function(options) {
-  var rateLimiter = RateLimiter(options);
-  var counts = {};
+const RateLimitedCounter = function(options) {
+  const rateLimiter = RateLimiter(options);
+  const counts = {};
 
   return {
-    increment: function() {
-      var args = Array.prototype.slice.call(arguments);
-      var cb = args.pop();
-      var userId;
+    increment () {
+      const args = Array.prototype.slice.call(arguments);
+      let cb = args.pop();
+      let userId;
       if (typeof cb === "function") {
         userId = args[0] || "";
       } else {
@@ -20,41 +20,42 @@ var RateLimitedCounter = function(options) {
         cb = null;
       }
       counts[userId] = counts[userId] || 0;
-      var limit = userId ? rateLimiter.bind(null, userId) : rateLimiter;
+      const limit = userId ? rateLimiter.bind(null, userId) : rateLimiter;
       if (cb) {
-        limit(function(err, blocked) {
-          if (!blocked) {
+        limit(function(err, timeLeft) {
+          if (!timeLeft) {
             counts[userId]++;
           }
-          cb(err);
+          cb(err, timeLeft);
         });
       } else {
-        var blocked = limit();
-        if (!blocked) {
+        const timeLeft = limit();
+        if (!timeLeft) {
           counts[userId]++;
         }
+        return timeLeft;
       }
     },
 
-    getCount: function(userId) {
+    getCount (userId) {
       return counts[userId || ""];
-    }
+    },
   };
 
 };
 
-describe("rateLimiter", function () {
+describe("rateLimiter", function() {
 
   describe("options validation", function() {
-    
-    var options;
-    
+
+    let options;
+
     beforeEach(function() {
       options = {
         interval: 10000,
         maxInInterval: 5,
         minDifference: 500,
-        namespace: "MyNamespace"
+        namespace: "MyNamespace",
       };
     });
 
@@ -91,25 +92,34 @@ describe("rateLimiter", function () {
 
   describe("synchronous operation with in-memory store", function() {
 
-    it("prevents requests that exceed the maximum over the interval", function() {
-      var counter = RateLimitedCounter({
-        interval: 300,
-        maxInInterval: 30
+    it("allows requests that don't exceed the maximum over the interval", function() {
+      const counter = RateLimitedCounter({
+        interval: 100,
+        maxInInterval: 30,
       });
+      for (let n = 0; n < 100; n++) {
+        counter.increment();
+      }
+      expect(counter.getCount()).to.equal(30);
+    });
 
-      for (var n = 0; n < 100; n++) {
+    it("prevents requests that exceed the maximum over the interval", function() {
+      const counter = RateLimitedCounter({
+        interval: 100,
+        maxInInterval: 30,
+      });
+      for (let n = 0; n < 100; n++) {
         counter.increment();
       }
       expect(counter.getCount()).to.equal(30);
     });
 
     it("keeps seperate counts for multiple users", function() {
-      var counter = RateLimitedCounter({
-        interval: 300,
-        maxInInterval: 30
+      const counter = RateLimitedCounter({
+        interval: 100,
+        maxInInterval: 30,
       });
-
-      for (var n = 0; n < 300; n++) {
+      for (let n = 0; n < 300; n++) {
         counter.increment(n % 3);
       }
       expect(counter.getCount(0)).to.equal(30);
@@ -119,18 +129,18 @@ describe("rateLimiter", function () {
 
 
     it("allows requests after the interval has passed", function(done) {
-      var counter = RateLimitedCounter({
+      const counter = RateLimitedCounter({
         interval: 100,
-        maxInInterval: 30
+        maxInInterval: 30,
       });
 
-      for (var n = 0; n < 300; n++) {
+      for (let n = 0; n < 300; n++) {
         counter.increment(n % 3);
       }
       setTimeout(function() {
-        for (var n = 0; n < 300; n++) {
+        for (let n = 0; n < 300; n++) {
           counter.increment(n % 3);
-        } 
+        }
         expect(counter.getCount(0)).to.equal(60);
         expect(counter.getCount(1)).to.equal(60);
         expect(counter.getCount(2)).to.equal(60);
@@ -139,13 +149,13 @@ describe("rateLimiter", function () {
     });
 
     it("doesn't allow consecutive requests less than the minDifferent apart", function() {
-      var counter = RateLimitedCounter({
+      const counter = RateLimitedCounter({
         interval: 1000000,
         maxInInterval: 1000,
-        minDifference: 100
+        minDifference: 100,
       });
 
-      for (var n = 0; n < 300; n++) {
+      for (let n = 0; n < 300; n++) {
         counter.increment(n % 3);
       }
       expect(counter.getCount(0)).to.equal(1);
@@ -154,23 +164,23 @@ describe("rateLimiter", function () {
     });
 
     it("returns the time after which actions will be allowed", function() {
-      var limiter1 = RateLimiter({
+      const limiter1 = RateLimiter({
         interval: 10000,
-        maxInInterval: 2
+        maxInInterval: 2,
       });
-      var first = limiter1();
-      var second = limiter1();
-      var third = limiter1();
-      
+      let first = limiter1();
+      let second = limiter1();
+      const third = limiter1();
+
       expect(first).to.equal(0);
       expect(second).to.equal(0);
       expect(third).to.be.above(9900);
       expect(third).to.be.below(10001);
 
-      var limiter2 = RateLimiter({
+      const limiter2 = RateLimiter({
         interval: 10000,
         maxInInterval: 100,
-        minDifference: 100
+        minDifference: 100,
       });
 
       first = limiter2();
@@ -185,9 +195,9 @@ describe("rateLimiter", function () {
   describe("asynchronous operation with in-memory store", function() {
 
     it("prevents requests that exceed the maximum over the interval", function(done) {
-      var counter = RateLimitedCounter({
+      const counter = RateLimitedCounter({
         interval: 300,
-        maxInInterval: 30
+        maxInInterval: 30,
       });
 
       async.times(100, function(n, next) {
@@ -200,9 +210,9 @@ describe("rateLimiter", function () {
     });
 
     it("keeps seperate counts for multiple users", function(done) {
-      var counter = RateLimitedCounter({
+      const counter = RateLimitedCounter({
         interval: 300,
-        maxInInterval: 30
+        maxInInterval: 30,
       });
 
       async.times(100, function(n, next) {
@@ -218,9 +228,9 @@ describe("rateLimiter", function () {
 
 
     it("allows requests after the interval has passed", function(done) {
-      var counter = RateLimitedCounter({
+      const counter = RateLimitedCounter({
         interval: 150,
-        maxInInterval: 30
+        maxInInterval: 30,
       });
 
       async.times(100, function(n, next) {
@@ -230,7 +240,7 @@ describe("rateLimiter", function () {
         setTimeout(function() {
           async.times(100, function(n, next) {
             counter.increment(n % 3, next);
-          }, function(err, results) {
+          }, function(err) {
             if (err) throw err;
             expect(counter.getCount(0)).to.equal(60);
             expect(counter.getCount(1)).to.equal(60);
@@ -242,10 +252,10 @@ describe("rateLimiter", function () {
     });
 
     it("doesn't allow consecutive requests less than the minDifferent apart", function(done) {
-      var counter = RateLimitedCounter({
+      const counter = RateLimitedCounter({
         interval: 1000000,
         maxInInterval: 1000,
-        minDifference: 100
+        minDifference: 100,
       });
 
       async.times(100, function(n, next) {
@@ -268,11 +278,11 @@ describe("rateLimiter", function () {
     });
 
     it("prevents requests that exceed the maximum over the interval", function(done) {
-      var client = redis.createClient();
-      var counter = RateLimitedCounter({
+      const client = redis.createClient();
+      const counter = RateLimitedCounter({
         redis: client,
         interval: 300,
-        maxInInterval: 30
+        maxInInterval: 30,
       });
 
       async.times(100, function(n, next) {
@@ -285,14 +295,14 @@ describe("rateLimiter", function () {
     });
 
     it("works when redis is in buffer mode", function(done) {
-      var client = redis.createClient({return_buffers: true});
+      const client = redis.createClient({return_buffers: true});
       // fakeredis seems to hide this option.
       client.options = {};
       client.options.return_buffers = true;
-      var counter = RateLimitedCounter({
+      const counter = RateLimitedCounter({
         redis: client,
         interval: 300,
-        maxInInterval: 30
+        maxInInterval: 30,
       });
 
       async.times(100, function(n, next) {
@@ -305,10 +315,10 @@ describe("rateLimiter", function () {
     });
 
     it("keeps seperate counts for multiple users", function(done) {
-      var counter = RateLimitedCounter({
+      const counter = RateLimitedCounter({
         redis: redis.createClient(),
         interval: 300,
-        maxInInterval: 30
+        maxInInterval: 30,
       });
 
       async.times(100, function(n, next) {
@@ -324,10 +334,10 @@ describe("rateLimiter", function () {
 
 
     it("allows requests after the interval has passed", function(done) {
-      var counter = RateLimitedCounter({
+      const counter = RateLimitedCounter({
         redis: redis.createClient(),
         interval: 150,
-        maxInInterval: 30
+        maxInInterval: 30,
       });
 
       async.times(100, function(n, next) {
@@ -337,7 +347,7 @@ describe("rateLimiter", function () {
         setTimeout(function() {
           async.times(100, function(n, next) {
             counter.increment(n % 3, next);
-          }, function(err, results) {
+          }, function(err) {
             if (err) throw err;
             expect(counter.getCount(0)).to.equal(60);
             expect(counter.getCount(1)).to.equal(60);
@@ -349,11 +359,11 @@ describe("rateLimiter", function () {
     });
 
     it("doesn't allow consecutive requests less than the minDifferent apart", function(done) {
-      var counter = RateLimitedCounter({
+      const counter = RateLimitedCounter({
         redis: redis.createClient(),
         interval: 1000000,
         maxInInterval: 1000,
-        minDifference: 100
+        minDifference: 100,
       });
 
       async.times(100, function(n, next) {
@@ -368,8 +378,8 @@ describe("rateLimiter", function () {
     });
 
     it("can share a redis between multiple rate limiters in different namespaces", function(done) {
-      var client = redis.createClient();
-      var counters = [
+      const client = redis.createClient();
+      const counters = [
         RateLimitedCounter({
           redis: client,
           interval: 300,
@@ -379,10 +389,10 @@ describe("rateLimiter", function () {
           redis: client,
           interval: 300,
           maxInInterval: 15,
-        })
+        }),
       ];
       async.times(200, function(n, next) {
-        var counter = counters[n % 2];
+        const counter = counters[n % 2];
         counter.increment(n % 3, next);
       }, function(err) {
         if (err) throw err;
@@ -397,35 +407,35 @@ describe("rateLimiter", function () {
     });
 
     it("can share a redis between multiple rate limiters in the same namespace", function(done) {
-      var client = redis.createClient();
-      var namespace = Math.random().toString(36).slice(2);
-      var counters = [
+      const client = redis.createClient();
+      const namespace = Math.random().toString(36).slice(2);
+      const counters = [
         RateLimitedCounter({
           redis: client,
-          namespace: namespace,
+          namespace,
           interval: 300,
           maxInInterval: 30,
         }),
         RateLimitedCounter({
           redis: client,
-          namespace: namespace,
+          namespace,
           interval: 300,
           maxInInterval: 30,
-        })
+        }),
       ];
       async.times(200, function(n, next) {
-        var counter = counters[(n + 1) % 2];
+        const counter = counters[(n + 1) % 2];
         counter.increment(n % 3, next);
       }, function(err) {
         if (err) throw err;
 
         // CountXY is the count for counter x and user y.
-        var count00 = counters[0].getCount(0);
-        var count01 = counters[0].getCount(1);
-        var count02 = counters[0].getCount(2);
-        var count10 = counters[1].getCount(0);
-        var count11 = counters[1].getCount(1);
-        var count12 = counters[1].getCount(2);
+        const count00 = counters[0].getCount(0);
+        const count01 = counters[0].getCount(1);
+        const count02 = counters[0].getCount(2);
+        const count10 = counters[1].getCount(0);
+        const count11 = counters[1].getCount(1);
+        const count12 = counters[1].getCount(2);
 
         expect(count00 + count10).to.equal(30);
         expect(count01 + count11).to.equal(30);
@@ -441,10 +451,10 @@ describe("rateLimiter", function () {
     });
 
     it("returns the time after which actions will be allowed", function(done) {
-      var limiter1 = RateLimiter({
+      const limiter1 = RateLimiter({
         redis: redis.createClient(),
         interval: 10000,
-        maxInInterval: 2
+        maxInInterval: 2,
       });
       async.times(3, function(n, next) {
         limiter1(next);
@@ -456,10 +466,10 @@ describe("rateLimiter", function () {
 
         // ---
 
-        var limiter2 = RateLimiter({
+        const limiter2 = RateLimiter({
           interval: 10000,
           maxInInterval: 100,
-          minDifference: 100
+          minDifference: 100,
         });
         async.times(3, function(n, next) {
           limiter2(next);
@@ -473,16 +483,16 @@ describe("rateLimiter", function () {
     });
 
     it("ttl functions properly", function(done) {
-      var client = redis.createClient();
-      var namespace = Math.random().toString(36).slice(2);
-      var limiter = RateLimiter({
+      const client = redis.createClient();
+      const namespace = Math.random().toString(36).slice(2);
+      const limiter = RateLimiter({
         redis: client,
         interval: 10000,
         maxInInterval: 5,
-        namespace: namespace
+        namespace,
       });
-      limiter("1", function(err, result) {
-        var key = namespace + "1";
+      limiter("1", function() {
+        const key = `${namespace }1`;
         client.ttl(key, function(err, result) {
           expect(result).to.equal(10);
           done();
