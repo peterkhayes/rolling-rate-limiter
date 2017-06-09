@@ -171,11 +171,20 @@ describe("rateLimiter", function() {
       var first = limiter1();
       var second = limiter1();
       var third = limiter1();
+      var fourth = limiter1();
+      var fifth = limiter1();
+      var sixth = limiter1();
 
       expect(first).to.equal(0);
       expect(second).to.equal(0);
       expect(third).to.be.above(9900);
       expect(third).to.be.below(10001);
+      expect(fourth).to.be.above(9900);
+      expect(fourth).to.be.below(10001);
+      expect(fifth).to.be.above(19900);
+      expect(fifth).to.be.below(20001);
+      expect(sixth).to.be.above(19900);
+      expect(sixth).to.be.below(20001);
 
       var limiter2 = RateLimiter({
         interval: 10000,
@@ -456,13 +465,19 @@ describe("rateLimiter", function() {
         interval: 10000,
         maxInInterval: 2,
       });
-      async.times(3, function(n, next) {
+      async.times(6, function(n, next) {
         limiter1(next);
       }, function(err, results) {
         expect(results[0]).to.equal(0);
         expect(results[1]).to.equal(0);
         expect(results[2]).to.be.above(9900);
         expect(results[2]).to.be.below(10001);
+        expect(results[3]).to.be.above(9900);
+        expect(results[3]).to.be.below(10001);
+        expect(results[4]).to.be.above(19900);
+        expect(results[4]).to.be.below(20001);
+        expect(results[5]).to.be.above(19900);
+        expect(results[5]).to.be.below(20001);
 
         // ---
 
