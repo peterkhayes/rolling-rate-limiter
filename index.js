@@ -1,5 +1,6 @@
 var assert = require("assert");
 var microtime = require("microtime-nodejs");
+var uuid = require("uuid/v4");
 
 function RateLimiter (options) {
   var redis           = options.redis,
@@ -48,13 +49,15 @@ function RateLimiter (options) {
 
       var batch = redis.multi();
       batch.zremrangebyscore(key, 0, clearBefore);
-      batch.zrange(key, 0, -1);
-      batch.zadd(key, now, now);
+      batch.zrange(key, 0, -1, 'withscores');
+      batch.zadd(key, now, uuid());
       batch.expire(key, Math.ceil(interval / 1000000)); // convert to seconds, as used by redis ttl.
       batch.exec(function(err, resultArr) {
         if (err) return cb(err);
 
-        var userSet = zrangeToUserSet(resultArr[1]);
+        var userSet = zrangeToUserSet(resultArr[1]).filter(function(elem, i) {
+          return i % 2 != 0;
+        });
 
         var tooManyInInterval = userSet.length >= maxInInterval;
         var timeSinceLastRequest = now - userSet[userSet.length - 1];
