@@ -59,14 +59,14 @@ function RateLimiter (options) {
           return i % 2 != 0;
         });
 
-        var tooManyInInterval = userSet.length >= maxInInterval;
+        var backloggedIntervals = parseInt(userSet.length / maxInInterval, 10);
         var timeSinceLastRequest = now - userSet[userSet.length - 1];
 
         var result;
         var remaining = maxInInterval - userSet.length - 1;
 
-        if (tooManyInInterval || timeSinceLastRequest < minDifference) {
-          result = Math.max(tooManyInInterval ? userSet[userSet.length - maxInInterval] - now + interval : 0, minDifference ? minDifference : 0);
+        if (backloggedIntervals > 0 || timeSinceLastRequest < minDifference) {
+          result = Math.max(backloggedIntervals > 0 ? userSet[userSet.length - maxInInterval] - now + interval * backloggedIntervals : 0, minDifference ? minDifference : 0);
           result = Math.floor(result / 1000); // convert to miliseconds for user readability.
         } else {
           result = 0;
@@ -97,14 +97,14 @@ function RateLimiter (options) {
         return timestamp > clearBefore;
       });
 
-      var tooManyInInterval = userSet.length >= maxInInterval;
+      var backloggedIntervals = parseInt(userSet.length / maxInInterval, 10);
       var timeSinceLastRequest = now - userSet[userSet.length - 1];
 
       var result;
       var remaining = maxInInterval - userSet.length - 1;
 
-      if (tooManyInInterval || timeSinceLastRequest < minDifference) {
-        result = Math.max(tooManyInInterval ? userSet[userSet.length - maxInInterval] - now + interval : 0, minDifference ? minDifference : 0);
+      if (backloggedIntervals > 0 || timeSinceLastRequest < minDifference) {
+        result = Math.max(backloggedIntervals > 0 ? userSet[userSet.length - maxInInterval] - now + interval * backloggedIntervals : 0, minDifference ? minDifference : 0);
         result = Math.floor(result / 1000); // convert from microseconds for user readability.
       } else {
         result = 0;
