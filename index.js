@@ -49,7 +49,7 @@ function RateLimiter (options) {
 
       var batch = redis.multi();
       batch.zremrangebyscore(key, 0, clearBefore);
-      batch.zrange(key, 0, -1, 'withscores');
+      batch.zrange(key, 0, -1, "withscores");
       batch.zadd(key, now, uuid());
       batch.expire(key, Math.ceil(interval / 1000000)); // convert to seconds, as used by redis ttl.
       batch.exec(function(err, resultArr) {
@@ -104,7 +104,7 @@ function RateLimiter (options) {
       var remaining = maxInInterval - userSet.length - 1;
 
       if (tooManyInInterval || timeSinceLastRequest < minDifference) {
-        result = Math.max(tooManyInInterval ? userSet[userSet.length - maxInInterval] - now + interval : 0, minDifference ? minDifference : 0);
+        result = Math.max(tooManyInInterval ? userSet[userSet.length - maxInInterval] - now + interval : 0, minDifference ? minDifference - timeSinceLastRequest : 0);
         result = Math.floor(result / 1000); // convert from microseconds for user readability.
       } else {
         result = 0;
@@ -127,6 +127,3 @@ function RateLimiter (options) {
 }
 
 module.exports = RateLimiter;
-
-
-
