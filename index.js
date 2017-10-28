@@ -9,7 +9,7 @@ function RateLimiter (options) {
     minDifference   = options.minDifference ? 1000 * options.minDifference : null, // also in microseconds
     namespace       = options.namespace || (options.redis && (`rate-limiter-${ Math.random().toString(36).slice(2)}`)) || null;
 
-  assert(interval > 0, "Must pass a positive integer for `options.interval`");
+  assert(interval >= 0, "Must pass a non-negative integer for `options.interval`");
   assert(maxInInterval >= 0, "Must pass a non-negative integer for `options.maxInInterval`");
   assert(!(minDifference < 0), "`options.minDifference` cannot be negative");
 
