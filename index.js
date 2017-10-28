@@ -10,12 +10,22 @@ function RateLimiter (options) {
     namespace       = options.namespace || (options.redis && (`rate-limiter-${ Math.random().toString(36).slice(2)}`)) || null;
 
   assert(interval > 0, "Must pass a positive integer for `options.interval`");
-  assert(maxInInterval > 0, "Must pass a positive integer for `options.maxInInterval`");
+  assert(maxInInterval >= 0, "Must pass a non-negative integer for `options.maxInInterval`");
   assert(!(minDifference < 0), "`options.minDifference` cannot be negative");
 
   if (!options.redis) {
     var storage = {};
     var timeouts = {};
+  }
+
+  if (maxInInterval === 0) {
+    return function(id, cb) {
+      if (!cb) {
+        cb = id;
+        id = "";
+      }
+      return cb(null, interval, 0);
+    };
   }
 
   if (redis) {
