@@ -55,7 +55,13 @@ function RateLimiter (options) {
       batch.exec(function(err, resultArr) {
         if (err) return cb(err);
 
-        var userSet = zrangeToUserSet(resultArr[1]).filter(function(elem, i) {
+        var zrangeResult = resultArr[1];
+        // If the result of zrange is an array ([err, result]), then use the second element.
+        if (Array.isArray(zrangeResult)) {
+          zrangeResult = zrangeResult[1];
+        }
+        
+        var userSet = zrangeToUserSet(zrangeResult).filter(function(elem, i) {
           return i % 2 != 0;
         });
 
