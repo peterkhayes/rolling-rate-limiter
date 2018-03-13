@@ -56,8 +56,8 @@ function RateLimiter (options) {
         if (err) return cb(err);
 
         var zrangeResult = resultArr[1];
-        // If the result of zrange is an array ([err, result]), then use the second element.
-        if (Array.isArray(zrangeResult)) {
+        // If the second element of the ZRANGE result is an array, then use it as the result. This is how ioredis formats the result ([err, [result]])
+        if (Array.isArray(zrangeResult[1])) {
           zrangeResult = zrangeResult[1];
         }
         
