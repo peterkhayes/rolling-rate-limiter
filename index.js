@@ -55,7 +55,13 @@ function RateLimiter (options) {
       batch.exec(function(err, resultArr) {
         if (err) return cb(err);
 
-        var userSet = zrangeToUserSet(resultArr[1]).filter(function(elem, i) {
+        var zrangeResult = resultArr[1];
+        // If the second element of the ZRANGE result is an array, then use it as the result. This is how ioredis formats the result ([err, [result]])
+        if (Array.isArray(zrangeResult[1])) {
+          zrangeResult = zrangeResult[1];
+        }
+        
+        var userSet = zrangeToUserSet(zrangeResult).filter(function(elem, i) {
           return i % 2 != 0;
         });
 
