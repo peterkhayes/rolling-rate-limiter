@@ -20,7 +20,7 @@ It can use either in-memory storage or Redis as a backend.  If Redis is used, mu
   var RateLimiter = require("rolling-rate-limiter");
 
   var limiter = RateLimiter({
-    interval: 1000 // in miliseconds
+    interval: 1000, // in miliseconds
     maxInInterval: 10,
     minDifference: 100 // optional: the minimum time (in miliseconds) between any two actions
   });
