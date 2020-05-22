@@ -18,6 +18,8 @@ function RateLimiter (options) {
     var timeouts = {};
   }
 
+  var limit
+
   if (redis) {
     // If redis is going to be potentially returning buffers OR an array from
     // ZRANGE, need a way to safely convert either of these types to an array
@@ -34,7 +36,7 @@ function RateLimiter (options) {
       };
     }
 
-    return function(id, cb) {
+    limit = function(check, id, cb) {
       if (!cb) {
         cb = id;
         id = "";
@@ -50,7 +52,9 @@ function RateLimiter (options) {
       var batch = redis.multi();
       batch.zremrangebyscore(key, 0, clearBefore);
       batch.zrange(key, 0, -1, "withscores");
-      batch.zadd(key, now, uuid());
+      if (!check) {
+        batch.zadd(key, now, uuid());
+      }
       batch.expire(key, Math.ceil(interval / 1000000)); // convert to seconds, as used by redis ttl.
       batch.exec(function(err, resultArr) {
         if (err) return cb(err);
@@ -60,7 +64,7 @@ function RateLimiter (options) {
         if (Array.isArray(zrangeResult[1])) {
           zrangeResult = zrangeResult[1];
         }
-        
+
         var userSet = zrangeToUserSet(zrangeResult).filter(function(elem, i) {
           return i % 2 != 0;
         });
@@ -82,12 +86,13 @@ function RateLimiter (options) {
       });
     };
   } else {
-    return function() {
+    limit = function() {
       var args = Array.prototype.slice.call(arguments);
+      var check = args[0];
       var cb = args.pop();
       var id;
       if (typeof cb === "function") {
-        id = args[0] || "";
+        id = args[1] || "";
       } else {
         id = cb || "";
         cb = null;
@@ -115,7 +120,9 @@ function RateLimiter (options) {
       } else {
         result = 0;
       }
-      userSet.push(now);
+      if (!check) {
+        userSet.push(now);
+      }
       timeouts[id] = setTimeout(function() {
         delete storage[id];
         delete timeouts[id];
@@ -130,6 +137,11 @@ function RateLimiter (options) {
       }
     };
   }
+
+  var rateLimiter = limit.bind(null, false);
+  rateLimiter.check = limit.bind(null, true);
+
+  return rateLimiter;
 }
 
 module.exports = RateLimiter;

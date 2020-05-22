@@ -4,9 +4,13 @@ var redis = require("fakeredis");
 
 var RateLimiter = require("../");
 
-var RateLimitedCounter = function(options) {
+var RateLimitedCounter = function(options, useCheck) {
   var rateLimiter = RateLimiter(options);
   var counts = {};
+
+  if (useCheck) {
+    rateLimiter = rateLimiter.check;
+  }
 
   return {
     increment () {
@@ -190,6 +194,17 @@ describe("rateLimiter", function() {
       expect(second).to.be.below(101);
     });
 
+    it("check function does not increment the rate limit counter", function() {
+      var counter = RateLimitedCounter({
+        interval: 100,
+        maxInInterval: 30,
+      }, true);
+      for (var n = 0; n < 100; n++) {
+        counter.increment();
+      }
+      expect(counter.getCount()).to.equal(100);
+    });
+
   });
 
   describe("asynchronous operation with in-memory store", function() {
@@ -265,6 +280,21 @@ describe("rateLimiter", function() {
         expect(counter.getCount(0)).to.equal(1);
         expect(counter.getCount(1)).to.equal(1);
         expect(counter.getCount(2)).to.equal(1);
+        done();
+      });
+    });
+
+    it("check function does not increment the rate limit counter", function(done) {
+      var counter = RateLimitedCounter({
+        interval: 300,
+        maxInInterval: 30,
+      }, true);
+
+      async.times(100, function(n, next) {
+        counter.increment(next);
+      }, function(err) {
+        if (err) throw err;
+        expect(counter.getCount()).to.equal(100);
         done();
       });
     });
@@ -497,6 +527,23 @@ describe("rateLimiter", function() {
           expect(result).to.equal(10);
           done();
         })
+      });
+    });
+
+    it("check function does not increment the rate limit counter", function(done) {
+      var client = redis.createClient();
+      var counter = RateLimitedCounter({
+        redis: client,
+        interval: 300,
+        maxInInterval: 30,
+      }, true);
+
+      async.times(100, function(n, next) {
+        counter.increment(next);
+      }, function(err) {
+        if (err) throw err;
+        expect(counter.getCount()).to.equal(100);
+        done();
       });
     });
   });
