@@ -1,7 +1,14 @@
 module.exports = {
-  extends: "classdojo/node",
-  rules: {
-    "one-var": 0,
-    "max-len": 0,
-  }
-}
+  extends: 'peterkhayes/js',
+  env: {
+    node: true,
+  },
+  overrides: [
+    {
+      files: ['test/*.js'],
+      env: {
+        mocha: true,
+      },
+    },
+  ],
+};
