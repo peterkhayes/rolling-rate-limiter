@@ -11,6 +11,9 @@
     "type": "git",
     "url": "https://github.com/peterkhayes/rolling-rate-limiter"
   },
+  "engines": {
+    "node": ">= 4.0.0"
+  },
   "keywords": [
     "rate",
     "limiter",
