@@ -4,7 +4,7 @@
   "description": "Rate limiter that supports a rolling window, either in-memory or backed by redis",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha --exit"
   },
   "repository": {
     "type": "git",
@@ -26,15 +26,15 @@
   "homepage": "https://github.com/classdojo/rolling-rate-limiter",
   "dependencies": {
     "microtime-nodejs": "~1.0.0",
-    "uuid": "^3.0.1"
+    "uuid": "^8.1.0"
   },
   "devDependencies": {
-    "async": "~0.9.0",
-    "chai": "~1.10.0",
-    "eslint": "^3.19.0",
-    "eslint-config-classdojo": "^1.2.6",
-    "fakeredis": "~0.3.0",
+    "async": "~3.2.0",
+    "chai": "~4.2.0",
+    "eslint": "^7.1.0",
+    "eslint-config-classdojo": "^2.0.2",
+    "fakeredis": "~2.0.0",
     "lodash": "^4.17.4",
-    "mocha": "~2.1.0"
+    "mocha": "~7.2.0"
   }
 }

@@ -1,6 +1,6 @@
 var assert = require("assert");
 var microtime = require("microtime-nodejs");
-var uuid = require("uuid/v4");
+var uuid = require("uuid").v4;
 
 function RateLimiter (options) {
   var redis           = options.redis,
