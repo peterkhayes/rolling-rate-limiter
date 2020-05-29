@@ -20,7 +20,7 @@
     "window"
   ],
   "author": "Peter Hayes",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/peterkhayes/rolling-rate-limiter/issues"
   },
