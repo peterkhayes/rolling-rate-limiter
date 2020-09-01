@@ -1,11 +1,11 @@
 {
   "name": "rolling-rate-limiter",
-  "version": "0.1.10",
-  "description": "Rate limiter that supports a rolling window, either in-memory or backed by redis",
+  "version": "0.2.0",
+  "description": "Rate limiter that supports a rolling window, either in-memory or backed by Redis",
   "main": "index.js",
   "scripts": {
     "lint": "eslint . --fix",
-    "test": "mocha --exit"
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -30,16 +30,22 @@
   "homepage": "https://github.com/peterkhayes/rolling-rate-limiter",
   "dependencies": {
     "microtime-nodejs": "~1.0.0",
-    "uuid": "^8.1.0"
+    "uuid": "^8.3.0"
   },
   "devDependencies": {
+    "@types/ioredis": "^4.17.3",
+    "@types/jest": "^26.0.12",
+    "@types/node": "^14.6.2",
+    "@types/redis": "^2.8.26",
+    "@types/uuid": "^8.3.0",
     "async": "~3.2.0",
-    "chai": "~4.2.0",
-    "eslint": "^7.1.0",
-    "eslint-config-classdojo": "^2.0.2",
-    "eslint-config-peterkhayes": "^2.2.0",
-    "fakeredis": "~2.0.0",
-    "lodash": "^4.17.4",
-    "mocha": "~7.2.0"
+    "eslint": "^7.8.0",
+    "eslint-config-peterkhayes": "^4.0.0",
+    "ioredis": "^4.17.3",
+    "jest": "^26.4.2",
+    "lodash": "^4.17.20",
+    "redis": "^3.0.2",
+    "ts-jest": "^26.3.0",
+    "typescript": "^4.0.2"
   }
 }

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "allowJs": false,
+    "declaration": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
+    "moduleResolution": "node",
+    "outDir": "./lib",
+    "target": "ES2018"
+  },
+  "include": [
+    "./src/*",
+    "./.eslintrc.js",
+    "./jest.config.js",
+  ]
+}
