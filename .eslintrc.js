@@ -1,13 +1,13 @@
 module.exports = {
-  extends: 'peterkhayes/js',
+  extends: 'peterkhayes',
   env: {
     node: true,
   },
   overrides: [
     {
-      files: ['test/*.js'],
+      files: ['*.test.ts'],
       env: {
-        mocha: true,
+        jest: true,
       },
     },
   ],
