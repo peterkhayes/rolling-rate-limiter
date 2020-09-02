@@ -21,52 +21,54 @@ describe('options validation', () => {
     };
   });
 
-  it('throws if interval is missing', function () {
+  it('throws if interval is missing', () => {
+    // @ts-expect-error - simulate a bad options object
     delete options.interval;
     expect(() => new RateLimiter(options)).toThrow();
   });
 
-  it('throws if maxInInterval is missing', function () {
+  it('throws if maxInInterval is missing', () => {
+    // @ts-expect-error - simulate a bad options object
     delete options.maxInInterval;
     expect(() => new RateLimiter(options)).toThrow();
   });
 
-  it('throws if interval is zero', function () {
+  it('throws if interval is zero', () => {
     options.interval = 0;
     expect(() => new RateLimiter(options)).toThrow();
   });
 
-  it('throws if interval is negative', function () {
+  it('throws if interval is negative', () => {
     options.interval = -1;
     expect(() => new RateLimiter(options)).toThrow();
   });
 
-  it('throws if maxInInterval is zero', function () {
+  it('throws if maxInInterval is zero', () => {
     options.maxInInterval = 0;
     expect(() => new RateLimiter(options)).toThrow();
   });
 
-  it('throws if maxInInterval is negative', function () {
+  it('throws if maxInInterval is negative', () => {
     options.maxInInterval = -1;
     expect(() => new RateLimiter(options)).toThrow();
   });
 
-  it('throws if minDifference is negative', function () {
+  it('throws if minDifference is negative', () => {
     options.minDifference = -1;
     expect(() => new RateLimiter(options)).toThrow();
   });
 
-  it('passes if minDifference is missing', function () {
+  it('passes if minDifference is missing', () => {
     delete options.minDifference;
     expect(() => new RateLimiter(options)).not.toThrow();
   });
 
-  it('passes if minDifference is zero', function () {
+  it('passes if minDifference is zero', () => {
     options.minDifference = 0;
     expect(() => new RateLimiter(options)).not.toThrow();
   });
 
-  it('passes with full options', function () {
+  it('passes with full options', () => {
     expect(() => new RateLimiter(options)).not.toThrow();
   });
 });
@@ -75,7 +77,7 @@ describe('RateLimiter implementations', () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.runAllTimers());
 
-  let currentTime;
+  let currentTime = 0;
   function setTime(newTime: Milliseconds) {
     jest
       .spyOn(microtime, 'now')

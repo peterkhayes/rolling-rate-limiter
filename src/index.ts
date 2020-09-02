@@ -28,14 +28,14 @@ export class RateLimiter {
   maxInInterval: number;
   minDifference: number;
 
-  constructor({ interval, maxInInterval, minDifference }: RateLimiterOptions) {
+  constructor({ interval, maxInInterval, minDifference = 0 }: RateLimiterOptions) {
     assert(interval > 0, 'Must pass a positive integer for `options.interval`');
     assert(maxInInterval > 0, 'Must pass a positive integer for `options.maxInInterval`');
-    assert(!(minDifference < 0), '`options.minDifference` cannot be negative');
+    assert(minDifference >= 0, '`options.minDifference` cannot be negative');
 
     this.interval = millisecondsToMicroseconds(interval);
     this.maxInInterval = maxInInterval;
-    this.minDifference = millisecondsToMicroseconds(minDifference || 0);
+    this.minDifference = millisecondsToMicroseconds(minDifference);
   }
 
   async limitWithInfo(id: Id): Promise<RateLimitInfo> {
@@ -114,8 +114,9 @@ export class InMemoryRateLimiter extends RateLimiter {
 
   async clear(id: Id) {
     delete this.storage[id];
-    if (this.ttls[id]) {
-      clearTimeout(this.ttls[id]);
+    const ttl = this.ttls[id];
+    if (ttl) {
+      clearTimeout(ttl);
       delete this.ttls[id];
     }
   }
@@ -127,13 +128,14 @@ export class InMemoryRateLimiter extends RateLimiter {
     const currentTimestamp = getCurrentMicroseconds();
     // Update the stored timestamps, including filtering out old ones, and adding the new one.
     const clearBefore = currentTimestamp - this.interval;
-    this.storage[id] = (this.storage[id] || []).filter((t) => t > clearBefore);
+    const storedTimestamps = (this.storage[id] || []).filter((t) => t > clearBefore);
 
     if (addNewTimestamp) {
-      this.storage[id].push(currentTimestamp);
+      storedTimestamps.push(currentTimestamp);
 
       // Set a new TTL, and cancel the old one, if present.
-      if (this.ttls[id]) clearTimeout(this.ttls[id]);
+      const ttl = this.ttls[id];
+      if (ttl) clearTimeout(ttl);
       this.ttls[id] = setTimeout(() => {
         delete this.storage[id];
         delete this.ttls[id];
@@ -141,7 +143,8 @@ export class InMemoryRateLimiter extends RateLimiter {
     }
 
     // Return the new stored timestamps.
-    return this.storage[id];
+    this.storage[id] = storedTimestamps;
+    return storedTimestamps;
   }
 }
 

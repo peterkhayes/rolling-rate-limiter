@@ -5,13 +5,15 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "incremental": true,
+    "module": "commonjs",
     "moduleResolution": "node",
     "outDir": "./lib",
-    "target": "ES2018"
+    "strict": true,
+    "target": "ES2018",
   },
   "include": [
     "./src/*",
     "./.eslintrc.js",
     "./jest.config.js",
-  ]
+  ],
 }
