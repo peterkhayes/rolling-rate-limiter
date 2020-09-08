@@ -1,9 +1,13 @@
 {
   "name": "rolling-rate-limiter",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Rate limiter that supports a rolling window, either in-memory or backed by Redis",
   "main": "lib/index.js",
   "types": "lib/main.d.ts",
+  "files": [
+    "src",
+    "lib"
+  ],
   "scripts": {
     "lint": "eslint --fix",
     "prepublish": "tsc",
