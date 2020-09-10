@@ -1,0 +1,25 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Dependencies
+        run: yarn
+
+      - name: Set Up Redis
+        uses: shogo82148/actions-setup-redis@v1.8.0
+
+      - name: Run TypeScript
+        run: yarn typecheck
+
+      - name: Run ESLint
+        run: yarn lint
+
+      - name: Run Jest
+        run: yarn test

@@ -9,9 +9,12 @@
     "lib"
   ],
   "scripts": {
+    "build": "tsc",
+    "ci": "act",
     "lint": "eslint --fix",
-    "prepublish": "tsc",
-    "test": "jest ./**/*.ts"
+    "prepublish": "yarn build",
+    "test": "jest ./**/*.ts",
+    "typecheck": "tsc --noEmit"
   },
   "repository": {
     "type": "git",
