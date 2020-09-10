@@ -1,4 +1,5 @@
 # Rolling Rate Limiter
+![build status](https://github.com/actions/hello-world/workflows/CI/badge.svg)
 
 This is an implementation of a rate limiter in node.js that allows for rate limiting with a rolling window. It can use either in-memory storage or Redis as a backend.  If Redis is used, multiple rate limiters can share one instance with different namespaces, and multiple processes can share rate limiter state safely.
 
@@ -78,3 +79,17 @@ All methods take an `Id`, which should be of type `number | string`. Commonly, t
 * _Note_: if an action is blocked, it is still added to the set. This means that if a user is continually attempting actions more quickly than the allowed rate, _all_ of their actions will be blocked until they pause or slow their requests.
 * If the limiter uses a redis instance, the keys are prefixed with namespace, allowing a single redis instance to support separate rate limiters.
 * All redis operations for a single rate-limit check/update are performed as an atomic transaction, allowing rate limiters running on separate processes or machines to share state safely.
+
+## Local development
+
+### Installation
+Install dependencies with `yarn`.
+
+To run tests, you will need to have a Redis server running. You can do this by installing Redis, and running `redis-server`. Alternatively, you can run the CI build, which includes tests, by installing [act](https://github.com/nektos/act). This requires Docker to be running.
+
+### Testing
+* `yarn ci`: Runs the CI build, including linting, type checking, and tests. Requires [act](https://github.com/nektos/act) to run GitHub actions locally.
+* `yarn lint`: Runs ESLint.
+* `yarn test`: Runs Jest.
+* `yarn typecheck`: Runs TypeScript, without emitting output.
+* `yarn build`: Runs TypeScript and outputs to `./lib`.
