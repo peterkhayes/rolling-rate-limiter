@@ -1,5 +1,5 @@
 # Rolling Rate Limiter
-![build status](https://github.com/actions/hello-world/workflows/CI/badge.svg)
+![build status](https://github.com/peterkhayes/rolling-rate-limiter/workflows/CI/badge.svg)
 
 This is an implementation of a rate limiter in node.js that allows for rate limiting with a rolling window. It can use either in-memory storage or Redis as a backend.  If Redis is used, multiple rate limiters can share one instance with different namespaces, and multiple processes can share rate limiter state safely.
 
