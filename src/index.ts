@@ -1,7 +1,5 @@
 import assert from 'assert';
-import type { Redis as IORedisClient } from 'ioredis';
 import { now as getCurrentMicroseconds } from 'microtime-nodejs';
-import type { RedisClient as StandardRedisClient } from 'redis';
 import { v4 as uuid } from 'uuid';
 
 export type Id = number | string;
@@ -9,12 +7,20 @@ export type Seconds = number;
 export type Milliseconds = number;
 export type Microseconds = number;
 
+/**
+ * Generic options for constructing any rate limiter.
+ * See `README.md` for more information.
+ */
 export interface RateLimiterOptions {
   interval: number;
   maxInInterval: number;
   minDifference?: number;
 }
 
+/**
+ * Result shape returned by `limitWithInfo` and `wouldLimitWithInfo`.
+ * See `README.md` for more information.
+ */
 export interface RateLimitInfo {
   blocked: boolean;
   blockedDueToCount: boolean;
@@ -23,6 +29,9 @@ export interface RateLimitInfo {
   actionsRemaining: number;
 }
 
+/**
+ * Abstract base class for rate limiters.
+ */
 export class RateLimiter {
   interval: number;
   maxInInterval: number;
@@ -38,37 +47,61 @@ export class RateLimiter {
     this.minDifference = millisecondsToMicroseconds(minDifference);
   }
 
+  /**
+   * Attempts an action for the provided ID. Return information about whether the action was
+   * allowed and why, and whether upcoming actions will be allowed.
+   */
   async limitWithInfo(id: Id): Promise<RateLimitInfo> {
     const timestamps = await this.getTimestamps(id, true);
     return this.calculateInfo(timestamps);
   }
 
-  async wouldLimitWithInfo(id: Id) {
+  /**
+   * Returns information about what would happen if an action were attempted for the provided ID.
+   */
+  async wouldLimitWithInfo(id: Id): Promise<RateLimitInfo> {
     const currentTimestamp = getCurrentMicroseconds();
     const existingTimestamps = await this.getTimestamps(id, false);
     return this.calculateInfo([...existingTimestamps, currentTimestamp]);
   }
 
+  /**
+   * Attempts an action for the provided ID. Returns whether it was blocked.
+   */
   async limit(id: Id): Promise<boolean> {
     return (await this.limitWithInfo(id)).blocked;
   }
 
+  /**
+   * Returns whether an action for the provided ID would be blocked, if it were attempted.
+   */
   async wouldLimit(id: Id): Promise<boolean> {
     return (await this.wouldLimitWithInfo(id)).blocked;
   }
 
+  /**
+   * Clears rate limiting state for the provided ID.
+   */
   async clear(_id: Id): Promise<void> {
     return Promise.reject(new Error('Not implemented'));
   }
 
+  /**
+   * Returns the list of timestamps of actions attempted within `interval` for the provided ID. If
+   * `addNewTimestamp` flag is set, adds a new action with the current microsecond timestamp.
+   */
   protected async getTimestamps(
     _id: Id,
-    _addTimestamp: boolean,
+    _addNewTimestamp: boolean,
   ): Promise<Array<Microseconds>> {
     return Promise.reject(new Error('Not implemented'));
   }
 
-  protected calculateInfo(timestamps: Array<Microseconds>): RateLimitInfo {
+  /**
+   * Given a list of timestamps, computes the RateLimitingInfo. The last item in the list is the
+   * timestamp of the current action.
+   */
+  private calculateInfo(timestamps: Array<Microseconds>): RateLimitInfo {
     const numTimestamps = timestamps.length;
     const currentTimestamp = timestamps[numTimestamps - 1];
     const previousTimestamp = timestamps[numTimestamps - 2];
@@ -102,6 +135,9 @@ export class RateLimiter {
   }
 }
 
+/**
+ * Rate limiter implementation that uses an object stored in memory for storage.
+ */
 export class InMemoryRateLimiter extends RateLimiter {
   storage: Record<Id, Array<number> | undefined>;
   ttls: Record<Id, NodeJS.Timeout | undefined>;
@@ -148,13 +184,33 @@ export class InMemoryRateLimiter extends RateLimiter {
   }
 }
 
-type RedisClient = StandardRedisClient | IORedisClient;
+/**
+ * Minimal interface of a Redis client needed for algorithm.
+ * Ideally, this would be `RedisClient | IORedisClient`, but that would force consumers of this
+ * library to have `@types/redis` and `@types/ioredis` to be installed.
+ */
+interface RedisClient {
+  del(...args: Array<string>): unknown;
+  multi(): RedisBatch;
+}
+
+/** Minimal interface of a Redis batch command needed for algorithm. */
+interface RedisBatch {
+  zremrangebyscore(key: string, min: number, max: number): void;
+  zadd(key: string, score: string, value: string): void;
+  zrange(key: string, min: number, max: number, withScores: unknown): void;
+  expire(key: string, time: number): void;
+  exec(cb: (err: Error | null, result: Array<unknown>) => void): void;
+}
 
 interface RedisRateLimiterOptions extends RateLimiterOptions {
   client: RedisClient;
   namespace: string;
 }
 
+/**
+ * Rate limiter implementation that uses Redis for storage.
+ */
 export class RedisRateLimiter extends RateLimiter {
   client: RedisClient;
   namespace: string;
@@ -173,7 +229,6 @@ export class RedisRateLimiter extends RateLimiter {
 
   async clear(id: Id) {
     const key = this.makeKey(id);
-    // @ts-expect-error - unclear why redis/ioredis types don't line up here.
     await this.client.del(key);
   }
 
@@ -190,7 +245,6 @@ export class RedisRateLimiter extends RateLimiter {
     if (addNewTimestamp) {
       batch.zadd(key, String(now), uuid());
     }
-    // @ts-expect-error - unclear why redis/ioredis types don't line up here.
     batch.zrange(key, 0, -1, 'WITHSCORES');
     batch.expire(key, this.ttl);
 
