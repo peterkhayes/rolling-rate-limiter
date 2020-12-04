@@ -13,7 +13,7 @@ jobs:
         run: yarn
 
       - name: Set Up Redis
-        uses: shogo82148/actions-setup-redis@v1.8.0
+        uses: shogo82148/actions-setup-redis@v1.9.2
 
       - name: Run TypeScript
         run: yarn typecheck
