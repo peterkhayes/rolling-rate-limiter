@@ -1,6 +1,6 @@
 {
   "name": "rolling-rate-limiter",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Rate limiter that supports a rolling window, either in-memory or backed by Redis",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -42,10 +42,10 @@
     "uuid": "^8.3.0"
   },
   "devDependencies": {
-    "@types/jest": "^26.0.12",
     "@types/ioredis": "^4.17.3",
-    "@types/redis": "^2.8.26",
+    "@types/jest": "^26.0.12",
     "@types/node": "^14.6.2",
+    "@types/redis": "^2.8.26",
     "@types/uuid": "^8.3.0",
     "async": "~3.2.0",
     "eslint": "^7.8.0",
