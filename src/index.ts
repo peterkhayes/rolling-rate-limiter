@@ -218,7 +218,7 @@ export class RedisRateLimiter extends RateLimiter {
 
   constructor({ client, namespace, ...baseOptions }: RedisRateLimiterOptions) {
     super(baseOptions);
-    this.ttl = millisecondsToTTLSeconds(this.interval);
+    this.ttl = microsecondsToTTLSeconds(this.interval);
     this.client = client;
     this.namespace = namespace;
   }
@@ -285,6 +285,6 @@ export function microsecondsToMilliseconds(microseconds: Microseconds): Millisec
   return Math.ceil(microseconds / 1000);
 }
 
-export function millisecondsToTTLSeconds(milliseconds: Milliseconds): Seconds {
-  return Math.ceil(milliseconds / 1000);
+export function microsecondsToTTLSeconds(microseconds: Microseconds): Seconds {
+  return Math.ceil(microseconds / 1000 / 1000);
 }
