@@ -85,7 +85,7 @@ All methods take an `Id`, which should be of type `number | string`. Commonly, t
 ### Installation
 Install dependencies with `yarn`.
 
-To run tests, you will need to have a Redis server running. You can do this by installing Redis, and running `redis-server`. Alternatively, you can run the CI build, which includes tests, by installing [act](https://github.com/nektos/act). This requires Docker to be running.
+To run tests, you will need to have a Redis server running. You can do this by installing Redis, and running `redis-server`. Alternatively, you can run the CI build, which includes tests, by installing [act](https://github.com/nektos/act). This requires Docker to be running - on MacOS that means running `Docker.app` from your `Applications` folder.
 
 ### Testing
 * `yarn ci`: Runs the CI build, including linting, type checking, and tests. Requires [act](https://github.com/nektos/act) to run GitHub actions locally.
