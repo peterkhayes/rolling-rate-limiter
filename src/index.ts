@@ -197,7 +197,7 @@ interface RedisClient {
 /** Minimal interface of a Redis batch command needed for algorithm. */
 interface RedisBatch {
   zremrangebyscore(key: string, min: number, max: number): void;
-  zadd(key: string, score: string, value: string): void;
+  zadd(key: string, score: string | number, value: string): void;
   zrange(key: string, min: number, max: number, withScores: unknown): void;
   expire(key: string, time: number): void;
   exec(cb: (err: Error | null, result: Array<unknown>) => void): void;
