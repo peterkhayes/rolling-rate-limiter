@@ -30,7 +30,7 @@ const limiter = new RedisRateLimiter({
   client: redisClient, // client instance from `redis` or `ioredis`
   namespace: 'rate-limiter', // prefix for redis keys
   interval: 60000, // milliseconds
-  maxInInterval: 10,
+  maxInInterval: 5,
 });
 
 app.use(function(req, res, next) {
