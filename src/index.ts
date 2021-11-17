@@ -1,6 +1,6 @@
 import assert from 'assert';
-import { now as getCurrentMicroseconds } from 'microtime-nodejs';
 import { v4 as uuid } from 'uuid';
+import { now as getCurrentMicroseconds } from './now';
 
 export type Id = number | string;
 export type Seconds = number;

@@ -1,6 +1,6 @@
 import IORedis from 'ioredis';
-import microtime from 'microtime-nodejs';
 import redis from 'redis';
+import * as now from './now';
 
 import {
   RateLimiter,
@@ -79,9 +79,7 @@ describe('RateLimiter implementations', () => {
 
   let currentTime = 0;
   function setTime(newTime: Milliseconds) {
-    jest
-      .spyOn(microtime, 'now')
-      .mockImplementation(() => millisecondsToMicroseconds(newTime));
+    jest.spyOn(now, 'now').mockImplementation(() => millisecondsToMicroseconds(newTime));
     jest.advanceTimersByTime(Math.max(0, newTime - currentTime));
     currentTime = newTime;
   }
