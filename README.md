@@ -98,8 +98,10 @@ To run tests, you will need to have a Redis server running. You can do this by i
 
 ### Testing
 
-- `yarn ci`: Runs the CI build, including linting, type checking, and tests. Requires [act](https://github.com/nektos/act) to run GitHub actions locally.
-- `yarn lint`: Runs ESLint.
-- `yarn test`: Runs Jest.
-- `yarn typecheck`: Runs TypeScript, without emitting output.
-- `yarn build`: Runs TypeScript and outputs to `./lib`.
+Before running tests, make sure you have redis running. You can start redis in Docker, for example, by executing `docker run -it -p 6379:6379 -d --name=redis --restart=always redis:alpine`
+
+* `yarn ci`: Runs the CI build, including linting, type checking, and tests. Requires [act](https://github.com/nektos/act) to run GitHub actions locally.
+* `yarn lint`: Runs ESLint.
+* `yarn test`: Runs Jest.
+* `yarn typecheck`: Runs TypeScript, without emitting output.
+* `yarn build`: Runs TypeScript and outputs to `./lib`.

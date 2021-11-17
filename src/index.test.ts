@@ -122,6 +122,22 @@ describe('RateLimiter implementations', () => {
       expect(await limiter.limit(id)).toBe(false);
     });
 
+    it('can lock multiple actions at once', async () => {
+      const options = { interval: 10, maxInInterval: 100 };
+      const limiter = await createLimiter(options);
+
+      // Should allow first action through.
+      setTime(1000);
+      expect(await limiter.wouldLimitWithInfo(id)).toEqual({
+        actionsRemaining: 100,
+        blocked: false,
+        blockedDueToCount: false,
+        blockedDueToMinDifference: false,
+        millisecondsUntilAllowed: 0,
+      });
+      expect(await limiter.limit(id, 2)).toBe(false);
+    });
+
     it('blocked actions count as actions', async () => {
       const options = { interval: 10, maxInInterval: 3 };
       const limiter = await createLimiter(options);
