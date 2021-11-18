@@ -94,14 +94,16 @@ All methods take an `Id`, which should be of type `number | string`. Commonly, t
 
 Install dependencies with `yarn`.
 
-To run tests, you will need to have a Redis server running. You can do this by installing Redis, and running `redis-server`. Alternatively, you can run the CI build, which includes tests, by installing [act](https://github.com/nektos/act). This requires Docker to be running - on MacOS that means running `Docker.app` from your `Applications` folder.
+To run tests, you will need to have a Redis server running. There are a few methods to do this:
+
+- Install Redis (using something like homebrew), and then run `redis-server`.
+- Run Redis from Docker: `docker run -it -p 6379:6379 -d --name=redis --restart=always redis:alpine`
+- Run the CI build, which includes tests, by installing [act](https://github.com/nektos/act). This requires Docker to be running - on MacOS that means running `Docker.app` from your `Applications` folder.
 
 ### Testing
 
-Before running tests, make sure you have redis running. You can start redis in Docker, for example, by executing `docker run -it -p 6379:6379 -d --name=redis --restart=always redis:alpine`
-
-* `yarn ci`: Runs the CI build, including linting, type checking, and tests. Requires [act](https://github.com/nektos/act) to run GitHub actions locally.
-* `yarn lint`: Runs ESLint.
-* `yarn test`: Runs Jest.
-* `yarn typecheck`: Runs TypeScript, without emitting output.
-* `yarn build`: Runs TypeScript and outputs to `./lib`.
+- `yarn ci`: Runs the CI build, including linting, type checking, and tests. Requires [act](https://github.com/nektos/act) to run GitHub actions locally.
+- `yarn lint`: Runs ESLint.
+- `yarn test`: Runs Jest.
+- `yarn typecheck`: Runs TypeScript, without emitting output.
+- `yarn build`: Runs TypeScript and outputs to `./lib`.
