@@ -104,6 +104,14 @@ describe('RateLimiter implementations', () => {
 
       // Should allow first action through.
       setTime(0);
+      // Should have 2 actions available at start
+      expect(await limiter.wouldLimitWithInfo(id)).toEqual({
+        actionsRemaining: 2,
+        blocked: false,
+        blockedDueToCount: false,
+        blockedDueToMinDifference: false,
+        millisecondsUntilAllowed: 0,
+      });
       expect(await limiter.limit(id)).toBe(false);
 
       // Should allow second action through.

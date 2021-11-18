@@ -64,9 +64,9 @@ app.use(function (req, res, next) {
 
 All methods take an `Id`, which should be of type `number | string`. Commonly, this will be a user's id.
 
-- `limit(id: Id): Promise<boolean>` - Attempt to perform an action. Returns `false` if the action should be allowed, and `true` if the action should be blocked.
+- `limit(id: Id, count = 1): Promise<boolean>` - Attempts one or more actions for the provided ID. Returns `false` if the action(s) should be allowed, and `true` if the action(s) should be blocked.
 - `wouldLimit(id: Id): Promise<boolean>` - Return what would happen if an action were attempted. Returns `false` if an action would not have been blocked, and `true` if an action would have been blocked. Does not "count" as an action.
-- `limitWithInfo(id: Id): Promise<RateLimitInfo>` - Attempt to perform an action. Returns whether the action should be blocked, as well as additional information about why it was blocked and how long the user must wait.
+- `limitWithInfo(id: Id, count = 1): Promise<RateLimitInfo>` - Attempts one or more actions for the provided ID. Return information about whether the action(s) were allowed and why, and whether upcoming actions will be allowed.
 - `wouldLimitWithInfo(id: Id): Promise<RateLimitInfo>` - Returns info about what would happened if an action were attempted and why. Does not "count" as an action.
 
 `RateLimitInfo` contains the following properties:

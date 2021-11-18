@@ -47,7 +47,7 @@ export class RateLimiter {
   }
 
   /**
-   * Attempts an action for the provided ID. Return information about whether the action was
+   * Attempts one or more actions for the provided ID. Return information about whether the action(s) were
    * allowed and why, and whether upcoming actions will be allowed.
    */
   async limitWithInfo(id: Id, count = 1): Promise<RateLimitInfo> {
@@ -65,7 +65,7 @@ export class RateLimiter {
   }
 
   /**
-   * Attempts an action for the provided ID. Returns whether it was blocked.
+   * Attempts one or more actions for the provided ID. Return whether any actions were blocked.
    */
   async limit(id: Id, count = 1): Promise<boolean> {
     return (await this.limitWithInfo(id, count)).blocked;
@@ -254,9 +254,7 @@ export class RedisRateLimiter extends RateLimiter {
       batch.exec((err, result) => {
         if (err) return reject(err);
 
-        const zRangeOutput = (addNewTimestamps > 0
-          ? result[2]
-          : result[1]) as Array<unknown>;
+        const zRangeOutput = result[1 + addNewTimestamps] as Array<unknown>;
         const zRangeResult = this.getZRangeResult(zRangeOutput);
         const timestamps = this.extractTimestampsFromZRangeResult(zRangeResult);
         return resolve(timestamps);
