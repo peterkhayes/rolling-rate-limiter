@@ -1,6 +1,5 @@
 import assert from 'assert';
 import { v4 as uuid } from 'uuid';
-import { now as getCurrentMicroseconds } from './now';
 
 export type Id = number | string;
 export type Seconds = number;
@@ -275,6 +274,15 @@ export class RedisRateLimiter extends RateLimiter {
     // Map to numbers because by default all returned values are strings.
     return zRangeResult.filter((e, i) => i % 2).map(Number);
   }
+}
+
+export function getCurrentMicroseconds(): number {
+  const hr = process.hrtime();
+  return hr[0] * 1e6 + nanosecondsToMicroseconds(hr[1]);
+}
+
+export function nanosecondsToMicroseconds(nanoseconds: Microseconds): Milliseconds {
+  return Math.ceil(nanoseconds / 1000);
 }
 
 export function millisecondsToMicroseconds(milliseconds: Milliseconds): Microseconds {
