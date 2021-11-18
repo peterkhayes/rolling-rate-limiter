@@ -1,13 +1,12 @@
+import process from 'process';
 import IORedis from 'ioredis';
 import redis from 'redis';
-import * as now from './now';
 
 import {
   RateLimiter,
   RateLimiterOptions,
   InMemoryRateLimiter,
   RedisRateLimiter,
-  millisecondsToMicroseconds,
   Milliseconds,
 } from '.';
 
@@ -79,7 +78,9 @@ describe('RateLimiter implementations', () => {
 
   let currentTime = 0;
   function setTime(newTime: Milliseconds) {
-    jest.spyOn(now, 'now').mockImplementation(() => millisecondsToMicroseconds(newTime));
+    jest
+      .spyOn(process, 'hrtime')
+      .mockImplementation(() => [Math.floor(newTime / 1e3), (newTime % 1e3) * 1e6]);
     jest.advanceTimersByTime(Math.max(0, newTime - currentTime));
     currentTime = newTime;
   }
