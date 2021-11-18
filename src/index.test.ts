@@ -7,7 +7,6 @@ import {
   RateLimiterOptions,
   InMemoryRateLimiter,
   RedisRateLimiter,
-  Milliseconds,
 } from '.';
 
 describe('options validation', () => {
@@ -77,12 +76,15 @@ describe('RateLimiter implementations', () => {
   afterEach(() => jest.runAllTimers());
 
   let currentTime = 0;
-  function setTime(newTime: Milliseconds) {
+  function setTime(timeInMilliseconds: number) {
     jest
       .spyOn(process, 'hrtime')
-      .mockImplementation(() => [Math.floor(newTime / 1e3), (newTime % 1e3) * 1e6]);
-    jest.advanceTimersByTime(Math.max(0, newTime - currentTime));
-    currentTime = newTime;
+      .mockImplementation(() => [
+        Math.floor(timeInMilliseconds / 1e3),
+        (timeInMilliseconds % 1e3) * 1e6,
+      ]);
+    jest.advanceTimersByTime(Math.max(0, timeInMilliseconds - currentTime));
+    currentTime = timeInMilliseconds;
   }
 
   function sharedExamples(_createLimiter: (options: RateLimiterOptions) => RateLimiter) {

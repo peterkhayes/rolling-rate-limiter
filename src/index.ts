@@ -2,9 +2,9 @@ import assert from 'assert';
 import { v4 as uuid } from 'uuid';
 
 export type Id = number | string;
-export type Seconds = number;
-export type Milliseconds = number;
-export type Microseconds = number;
+export type Seconds = number & { __brand: 'seconds' };
+export type Milliseconds = number & { __brand: 'milliseconds' };
+export type Microseconds = number & { __brand: 'microseconds' };
 
 /**
  * Generic options for constructing any rate limiter.
@@ -32,18 +32,18 @@ export interface RateLimitInfo {
  * Abstract base class for rate limiters.
  */
 export class RateLimiter {
-  interval: number;
+  interval: Microseconds;
   maxInInterval: number;
-  minDifference: number;
+  minDifference: Microseconds;
 
   constructor({ interval, maxInInterval, minDifference = 0 }: RateLimiterOptions) {
     assert(interval > 0, 'Must pass a positive integer for `options.interval`');
     assert(maxInInterval > 0, 'Must pass a positive integer for `options.maxInInterval`');
     assert(minDifference >= 0, '`options.minDifference` cannot be negative');
 
-    this.interval = millisecondsToMicroseconds(interval);
+    this.interval = millisecondsToMicroseconds(interval as Milliseconds);
     this.maxInInterval = maxInInterval;
-    this.minDifference = millisecondsToMicroseconds(minDifference);
+    this.minDifference = millisecondsToMicroseconds(minDifference as Milliseconds);
   }
 
   /**
@@ -115,14 +115,17 @@ export class RateLimiter {
     // Always need to wait at least minDistance between consecutive actions.
     // If maxInInterval has been reached, also check how long will be required
     // until the interval is not full anymore.
+    const microsecondsUntilUnblocked =
+      numTimestamps >= this.maxInInterval
+        ? (timestamps[Math.max(0, numTimestamps - this.maxInInterval)] as number) -
+          (currentTimestamp as number) +
+          (this.interval as number)
+        : 0;
+
     const microsecondsUntilAllowed = Math.max(
       this.minDifference,
-      numTimestamps >= this.maxInInterval
-        ? timestamps[Math.max(0, numTimestamps - this.maxInInterval)] -
-            currentTimestamp +
-            this.interval
-        : 0,
-    );
+      microsecondsUntilUnblocked,
+    ) as Microseconds;
 
     return {
       blocked,
@@ -156,10 +159,7 @@ export class InMemoryRateLimiter extends RateLimiter {
     }
   }
 
-  protected async getTimestamps(
-    id: Id,
-    addNewTimestamp: boolean,
-  ): Promise<Array<Microseconds>> {
+  protected async getTimestamps(id: Id, addNewTimestamp: boolean) {
     const currentTimestamp = getCurrentMicroseconds();
     // Update the stored timestamps, including filtering out old ones, and adding the new one.
     const clearBefore = currentTimestamp - this.interval;
@@ -179,7 +179,7 @@ export class InMemoryRateLimiter extends RateLimiter {
 
     // Return the new stored timestamps.
     this.storage[id] = storedTimestamps;
-    return storedTimestamps;
+    return storedTimestamps as Array<Microseconds>;
   }
 }
 
@@ -217,7 +217,7 @@ export class RedisRateLimiter extends RateLimiter {
 
   constructor({ client, namespace, ...baseOptions }: RedisRateLimiterOptions) {
     super(baseOptions);
-    this.ttl = microsecondsToTTLSeconds(this.interval);
+    this.ttl = microsecondsToSeconds(this.interval);
     this.client = client;
     this.namespace = namespace;
   }
@@ -269,30 +269,26 @@ export class RedisRateLimiter extends RateLimiter {
     }
   }
 
-  private extractTimestampsFromZRangeResult(zRangeResult: Array<string>): Array<number> {
+  private extractTimestampsFromZRangeResult(zRangeResult: Array<string>) {
     // We only want the stored timestamps, which are the values, or the odd indexes.
     // Map to numbers because by default all returned values are strings.
-    return zRangeResult.filter((e, i) => i % 2).map(Number);
+    return zRangeResult.filter((e, i) => i % 2).map(Number) as Array<Microseconds>;
   }
 }
 
-export function getCurrentMicroseconds(): number {
+export function getCurrentMicroseconds() {
   const hr = process.hrtime();
-  return hr[0] * 1e6 + nanosecondsToMicroseconds(hr[1]);
+  return (hr[0] * 1e6 + Math.ceil(hr[1] / 1000)) as Microseconds;
 }
 
-export function nanosecondsToMicroseconds(nanoseconds: Microseconds): Milliseconds {
-  return Math.ceil(nanoseconds / 1000);
+export function millisecondsToMicroseconds(milliseconds: Milliseconds) {
+  return (1000 * milliseconds) as Microseconds;
 }
 
-export function millisecondsToMicroseconds(milliseconds: Milliseconds): Microseconds {
-  return 1000 * milliseconds;
+export function microsecondsToMilliseconds(microseconds: Microseconds) {
+  return Math.ceil(microseconds / 1000) as Milliseconds;
 }
 
-export function microsecondsToMilliseconds(microseconds: Microseconds): Milliseconds {
-  return Math.ceil(microseconds / 1000);
-}
-
-export function microsecondsToTTLSeconds(microseconds: Microseconds): Seconds {
-  return Math.ceil(microseconds / 1000 / 1000);
+export function microsecondsToSeconds(microseconds: Microseconds) {
+  return Math.ceil(microseconds / 1000 / 1000) as Seconds;
 }
