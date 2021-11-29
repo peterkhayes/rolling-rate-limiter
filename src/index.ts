@@ -1,4 +1,5 @@
 import assert from 'assert';
+import microtime from 'microtime';
 import { v4 as uuid } from 'uuid';
 
 export type Id = number | string;
@@ -277,8 +278,7 @@ export class RedisRateLimiter extends RateLimiter {
 }
 
 export function getCurrentMicroseconds() {
-  const hr = process.hrtime();
-  return (hr[0] * 1e6 + Math.ceil(hr[1] / 1000)) as Microseconds;
+  return microtime.now() as Microseconds;
 }
 
 export function millisecondsToMicroseconds(milliseconds: Milliseconds) {

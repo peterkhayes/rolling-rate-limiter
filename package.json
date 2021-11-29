@@ -38,11 +38,13 @@
   },
   "homepage": "https://github.com/peterkhayes/rolling-rate-limiter",
   "dependencies": {
+    "microtime": "^3.0.0",
     "uuid": "^8.3.0"
   },
   "devDependencies": {
     "@types/ioredis": "^4.26.0",
     "@types/jest": "^26.0.23",
+    "@types/microtime": "^2.1.0",
     "@types/node": "^15.0.1",
     "@types/redis": "^2.8.28",
     "@types/uuid": "^8.3.0",
