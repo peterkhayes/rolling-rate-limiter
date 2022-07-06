@@ -105,6 +105,14 @@ describe('RateLimiter implementations', () => {
 
       // Should allow first action through.
       setTime(0);
+      // Should have 2 actions available at start
+      expect(await limiter.wouldLimitWithInfo(id)).toEqual({
+        actionsRemaining: 2,
+        blocked: false,
+        blockedDueToCount: false,
+        blockedDueToMinDifference: false,
+        millisecondsUntilAllowed: 0,
+      });
       expect(await limiter.limit(id)).toBe(false);
 
       // Should allow second action through.
@@ -121,6 +129,39 @@ describe('RateLimiter implementations', () => {
       setTime(options.interval);
       expect(await limiter.wouldLimit(id)).toBe(false);
       expect(await limiter.limit(id)).toBe(false);
+    });
+
+    it('can lock multiple actions at once', async () => {
+      const options = { interval: 10, maxInInterval: 100 };
+      const limiter = await createLimiter(options);
+
+      setTime(1000);
+
+      // All actions available for consuming
+      expect(await limiter.wouldLimitWithInfo(id)).toEqual({
+        actionsRemaining: options.maxInInterval,
+        blocked: false,
+        blockedDueToCount: false,
+        blockedDueToMinDifference: false,
+        millisecondsUntilAllowed: 0,
+      });
+
+      // Lock all at once
+      expect(await limiter.limit(id, options.maxInInterval)).toBe(false);
+      // Nothing can be locked
+      expect(await limiter.limit(id)).toBe(true);
+
+      // Wait for window to pass
+      setTime(1000 + options.interval);
+      // All available again
+      expect(await limiter.limit(id, options.maxInInterval)).toBe(false);
+      expect(await limiter.limit(id)).toBe(true);
+
+      // Wait for half a window more
+      setTime(1000 + options.interval + options.interval / 2);
+      // Umm, should it have half of maxInInterval?
+      expect(await limiter.limit(id, options.maxInInterval / 2)).toBe(false);
+      expect(await limiter.limit(id)).toBe(true);
     });
 
     it('blocked actions count as actions', async () => {

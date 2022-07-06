@@ -48,11 +48,11 @@ export class RateLimiter {
   }
 
   /**
-   * Attempts an action for the provided ID. Return information about whether the action was
+   * Attempts one or more actions for the provided ID. Return information about whether the action(s) were
    * allowed and why, and whether upcoming actions will be allowed.
    */
-  async limitWithInfo(id: Id): Promise<RateLimitInfo> {
-    const timestamps = await this.getTimestamps(id, true);
+  async limitWithInfo(id: Id, count = 1): Promise<RateLimitInfo> {
+    const timestamps = await this.getTimestamps(id, count);
     return this.calculateInfo(timestamps);
   }
 
@@ -61,15 +61,15 @@ export class RateLimiter {
    */
   async wouldLimitWithInfo(id: Id): Promise<RateLimitInfo> {
     const currentTimestamp = getCurrentMicroseconds();
-    const existingTimestamps = await this.getTimestamps(id, false);
+    const existingTimestamps = await this.getTimestamps(id, 0);
     return this.calculateInfo([...existingTimestamps, currentTimestamp]);
   }
 
   /**
-   * Attempts an action for the provided ID. Returns whether it was blocked.
+   * Attempts one or more actions for the provided ID. Return whether any actions were blocked.
    */
-  async limit(id: Id): Promise<boolean> {
-    return (await this.limitWithInfo(id)).blocked;
+  async limit(id: Id, count = 1): Promise<boolean> {
+    return (await this.limitWithInfo(id, count)).blocked;
   }
 
   /**
@@ -88,11 +88,11 @@ export class RateLimiter {
 
   /**
    * Returns the list of timestamps of actions attempted within `interval` for the provided ID. If
-   * `addNewTimestamp` flag is set, adds a new action with the current microsecond timestamp.
+   * `addNewTimestamps` is set, adds a new actions with the current microsecond timestamp and more, incrementing by 1.
    */
   protected async getTimestamps(
     _id: Id,
-    _addNewTimestamp: boolean,
+    _addNewTimestamps: number,
   ): Promise<Array<Microseconds>> {
     return Promise.reject(new Error('Not implemented'));
   }
@@ -160,14 +160,17 @@ export class InMemoryRateLimiter extends RateLimiter {
     }
   }
 
-  protected async getTimestamps(id: Id, addNewTimestamp: boolean) {
+  protected async getTimestamps(
+    id: Id,
+    addNewTimestamps: number,
+  ): Promise<Array<Microseconds>> {
     const currentTimestamp = getCurrentMicroseconds();
     // Update the stored timestamps, including filtering out old ones, and adding the new one.
     const clearBefore = currentTimestamp - this.interval;
     const storedTimestamps = (this.storage[id] || []).filter((t) => t > clearBefore);
 
-    if (addNewTimestamp) {
-      storedTimestamps.push(currentTimestamp);
+    for (let i = 0; i < addNewTimestamps; i++) {
+      storedTimestamps.push(currentTimestamp + i);
 
       // Set a new TTL, and cancel the old one, if present.
       const ttl = this.ttls[id];
@@ -234,7 +237,7 @@ export class RedisRateLimiter extends RateLimiter {
 
   protected async getTimestamps(
     id: Id,
-    addNewTimestamp: boolean,
+    addNewTimestamps: number,
   ): Promise<Array<Microseconds>> {
     const now = getCurrentMicroseconds();
     const key = this.makeKey(id);
@@ -242,8 +245,8 @@ export class RedisRateLimiter extends RateLimiter {
 
     const batch = this.client.multi();
     batch.zremrangebyscore(key, 0, clearBefore);
-    if (addNewTimestamp) {
-      batch.zadd(key, String(now), uuid());
+    for (let i = 0; i < addNewTimestamps; i++) {
+      batch.zadd(key, String(now + i), uuid());
     }
     batch.zrange(key, 0, -1, 'WITHSCORES');
     batch.expire(key, this.ttl);
@@ -252,7 +255,7 @@ export class RedisRateLimiter extends RateLimiter {
       batch.exec((err, result) => {
         if (err) return reject(err);
 
-        const zRangeOutput = (addNewTimestamp ? result[2] : result[1]) as Array<unknown>;
+        const zRangeOutput = result[1 + addNewTimestamps] as Array<unknown>;
         const zRangeResult = this.getZRangeResult(zRangeOutput);
         const timestamps = this.extractTimestampsFromZRangeResult(zRangeResult);
         return resolve(timestamps);
