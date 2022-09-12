@@ -60,8 +60,8 @@ export class RateLimiter {
    * Returns information about what would happen if an action were attempted for the provided ID.
    */
   async wouldLimitWithInfo(id: Id): Promise<RateLimitInfo> {
-    const currentTimestamp = getCurrentMicroseconds();
     const existingTimestamps = await this.getTimestamps(id, false);
+    const currentTimestamp = getCurrentMicroseconds();
     return this.calculateInfo([...existingTimestamps, currentTimestamp]);
   }
 
