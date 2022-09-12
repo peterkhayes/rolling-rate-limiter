@@ -108,7 +108,11 @@ export class RateLimiter {
 
     const blockedDueToCount = numTimestamps > this.maxInInterval;
     const blockedDueToMinDifference =
-      previousTimestamp != null &&
+      previousTimestamp != null && 
+      // Only performs the check for positive `minDifference` values. The `currentTimestamp`
+      // created by `wouldLimit` may possibly be smaller than `previousTimestamp` in a distributed 
+      // environment.
+      this.minDifference &&
       currentTimestamp - previousTimestamp < this.minDifference;
 
     const blocked = blockedDueToCount || blockedDueToMinDifference;
