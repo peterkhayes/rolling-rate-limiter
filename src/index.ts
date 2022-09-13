@@ -112,7 +112,7 @@ export class RateLimiter {
       // Only performs the check for positive `minDifference` values. The `currentTimestamp`
       // created by `wouldLimit` may possibly be smaller than `previousTimestamp` in a distributed 
       // environment.
-      this.minDifference &&
+      this.minDifference > 0 &&
       currentTimestamp - previousTimestamp < this.minDifference;
 
     const blocked = blockedDueToCount || blockedDueToMinDifference;
