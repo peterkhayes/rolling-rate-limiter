@@ -11,17 +11,6 @@ As a consequence of the way the Redis algorithm works, if an action is blocked, 
 
 This behavior is somewhat counterintuitive, but it's the only way that I have found that uses an atomic `MULTI` set of commands for Redis. Without this, race conditions would be possible. [See more below.](#method-of-operation).
 
-## Upgrading from 0.1
-
-Version 0.2 was released August 31 2020. The method of operation remains the same, but the API has changed. A short summary of the changes:
-
-- Library was rewritten in Typescript.
-- Rate limiters are now instances of a `RateLimiter` class.
-- Methods now use promises instead of callbacks.
-- A `wouldLimit` method is now available to see if an action would be blocked, without actually "counting" it as an action.
-- `limitWithInfo` and `wouldLimitWithInfo` methods are available to return more information about how and why an action was blocked or not blocked.
-- Tests were rewritten in Jest, and run on both `redis` and `ioredis` clients.
-
 ## Quick start
 
 Basic use in an Express application.
