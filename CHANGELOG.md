@@ -1,3 +1,9 @@
+# 0.4.1
+
+No code changes.
+
+- Fix "engine" field in package.json to match what our TypeScript outputs.
+
 # 0.4 (2022/02/13)
 
 Some significant changes were required to support [V4 of the standard node redis library](https://github.com/redis/node-redis/blob/master/CHANGELOG.md#v400---24-nov-2021). This new version has an API that now differs significantly from IORedis.
