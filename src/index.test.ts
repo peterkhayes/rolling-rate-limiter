@@ -1,14 +1,16 @@
 import IORedis from 'ioredis';
 import microtime from 'microtime';
-import redis from 'redis';
+import * as redis from 'redis';
 
 import {
+  InMemoryRateLimiter,
+  IORedisRateLimiter,
+  Milliseconds,
+  millisecondsToMicroseconds,
+  NodeRedisRateLimiter,
   RateLimiter,
   RateLimiterOptions,
-  InMemoryRateLimiter,
   RedisRateLimiter,
-  millisecondsToMicroseconds,
-  Milliseconds,
 } from '.';
 
 describe('options validation', () => {
@@ -73,19 +75,39 @@ describe('options validation', () => {
   });
 });
 
-describe('RateLimiter implementations', () => {
-  beforeEach(() => jest.useFakeTimers());
-  afterEach(() => jest.runAllTimers());
+describe('client detection', () => {
+  const options = {
+    namespace: 'test',
+    interval: 10,
+    maxInInterval: 2,
+  };
 
-  let currentTime = 0;
+  it('detects node-redis client', () => {
+    const client = redis.createClient();
+    const limiter = new RedisRateLimiter({ client, ...options });
+    expect(limiter.detectedClientType).toBe('node-redis');
+  });
+
+  it('detects io-redis client', () => {
+    const client = new IORedis();
+    const limiter = new RedisRateLimiter({ client, ...options });
+    expect(limiter.detectedClientType).toBe('ioredis');
+    client.quit();
+  });
+
+  it('throws on invalid types', () => {
+    const client = { connect: () => {} };
+    expect(() => new RedisRateLimiter({ client, ...options })).toThrowError();
+  });
+});
+
+describe('RateLimiter implementations', () => {
   function setTime(timeInMilliseconds: number) {
     jest
       .spyOn(microtime, 'now')
       .mockImplementation(() =>
         millisecondsToMicroseconds(timeInMilliseconds as Milliseconds),
       );
-    jest.advanceTimersByTime(Math.max(0, timeInMilliseconds - currentTime));
-    currentTime = timeInMilliseconds;
   }
 
   function sharedExamples(_createLimiter: (options: RateLimiterOptions) => RateLimiter) {
@@ -307,54 +329,64 @@ describe('RateLimiter implementations', () => {
     sharedExamples((opts) => new InMemoryRateLimiter(opts));
   });
 
-  describe('RedisRateLimiter (`redis` client)', () => {
-    let client: redis.RedisClient;
-    beforeEach(() => {
+  describe('node-redis client', () => {
+    let client: redis.RedisClientType;
+    beforeEach(async () => {
       client = redis.createClient();
+      await client.connect();
     });
-    afterEach((cb) => client.quit(cb));
+    afterEach(() => client.quit());
 
-    sharedExamples(
-      (opts) =>
-        new RedisRateLimiter({
-          client,
-          namespace: 'rolling-rate-limiter-redis',
-          ...opts,
-        }),
-    );
+    describe('NodeRedisRateLimiter', () => {
+      sharedExamples(
+        (opts) =>
+          new NodeRedisRateLimiter({
+            client,
+            namespace: 'rolling-rate-limiter-redis-1',
+            ...opts,
+          }),
+      );
+    });
+
+    describe('RedisRateLimiter', () => {
+      sharedExamples(
+        (opts) =>
+          new RedisRateLimiter({
+            client,
+            namespace: 'rolling-rate-limiter-redis-2',
+            ...opts,
+          }),
+      );
+    });
   });
 
-  describe('RedisRateLimiter (`redis` client, `return_buffers` enabled)', () => {
-    let client: redis.RedisClient;
-    beforeEach(() => {
-      client = redis.createClient({ return_buffers: true });
-    });
-    afterEach((cb) => client.quit(cb));
-
-    sharedExamples(
-      (opts) =>
-        new RedisRateLimiter({
-          client,
-          namespace: 'rolling-rate-limiter-redis',
-          ...opts,
-        }),
-    );
-  });
-
-  describe('RedisRateLimiter (`ioredis` client)', () => {
-    let client: IORedis.Redis;
+  describe('ioredis client', () => {
+    let client: IORedis;
     beforeEach(() => {
       client = new IORedis();
     });
-    afterEach((cb) => client.quit(cb));
+    afterEach(() => client.quit());
 
-    sharedExamples(
-      (opts) =>
-        new RedisRateLimiter({
-          client,
-          namespace: 'rolling-rate-limiter-ioredis',
-          ...opts,
-        }),
-    );
+    describe('IORedisRateLimiter', () => {
+      sharedExamples(
+        (opts) =>
+          new IORedisRateLimiter({
+            client,
+            namespace: 'rolling-rate-limiter-ioredis-1',
+            ...opts,
+          }),
+      );
+    });
+
+    describe('RedisRateLimiter', () => {
+      sharedExamples(
+        (opts) =>
+          new RedisRateLimiter({
+            client,
+            namespace: 'rolling-rate-limiter-ioredis-2',
+            ...opts,
+          }),
+      );
+    });
   });
 });

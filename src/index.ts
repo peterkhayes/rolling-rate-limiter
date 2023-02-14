@@ -108,9 +108,9 @@ export class RateLimiter {
 
     const blockedDueToCount = numTimestamps > this.maxInInterval;
     const blockedDueToMinDifference =
-      previousTimestamp != null && 
+      previousTimestamp != null &&
       // Only performs the check for positive `minDifference` values. The `currentTimestamp`
-      // created by `wouldLimit` may possibly be smaller than `previousTimestamp` in a distributed 
+      // created by `wouldLimit` may possibly be smaller than `previousTimestamp` in a distributed
       // environment.
       this.minDifference > 0 &&
       currentTimestamp - previousTimestamp < this.minDifference;
@@ -189,38 +189,51 @@ export class InMemoryRateLimiter extends RateLimiter {
 }
 
 /**
- * Minimal interface of a Redis client needed for algorithm.
- * Ideally, this would be `RedisClient | IORedisClient`, but that would force consumers of this
- * library to have `@types/redis` and `@types/ioredis` to be installed.
+ * Wrapper class around a Redis client.
+ * Exposes only the methods we need for the algorithm.
+ * This papers over differences between `node-redis` and `ioredis`.
  */
-interface RedisClient {
-  del(...args: Array<string>): unknown;
-  multi(): RedisBatch;
+interface RedisClientWrapper {
+  del(arg: string): unknown;
+  multi(): RedisMultiWrapper;
+  parseZRangeResult(result: unknown): Array<Microseconds>;
 }
 
-/** Minimal interface of a Redis batch command needed for algorithm. */
-interface RedisBatch {
-  zremrangebyscore(key: string, min: number, max: number): void;
-  zadd(key: string, score: string | number, value: string): void;
-  zrange(key: string, min: number, max: number, withScores: unknown): void;
+/**
+ * Wrapper class around a Redis multi batch.
+ * Exposes only the methods we need for the algorithm.
+ * This papers over differences between `node-redis` and `ioredis`.
+ */
+interface RedisMultiWrapper {
+  zRemRangeByScore(key: string, min: number, max: number): void;
+  zAdd(key: string, score: number, value: string): void;
+  zRangeWithScores(key: string, min: number, max: number): void;
   expire(key: string, time: number): void;
-  exec(cb: (err: Error | null, result: Array<unknown>) => void): void;
+  exec(): Promise<Array<unknown>>;
 }
 
-interface RedisRateLimiterOptions extends RateLimiterOptions {
-  client: RedisClient;
+/**
+ * Generic options for constructing a Redis-backed rate limiter.
+ * See `README.md` for more information.
+ */
+interface RedisRateLimiterOptions<Client> extends RateLimiterOptions {
+  client: Client;
   namespace: string;
 }
 
 /**
- * Rate limiter implementation that uses Redis for storage.
+ * Abstract base class for Redis-based implementations.
  */
-export class RedisRateLimiter extends RateLimiter {
-  client: RedisClient;
+abstract class BaseRedisRateLimiter extends RateLimiter {
+  client: RedisClientWrapper;
   namespace: string;
   ttl: number;
 
-  constructor({ client, namespace, ...baseOptions }: RedisRateLimiterOptions) {
+  constructor({
+    client,
+    namespace,
+    ...baseOptions
+  }: RedisRateLimiterOptions<RedisClientWrapper>) {
     super(baseOptions);
     this.ttl = microsecondsToSeconds(this.interval);
     this.client = client;
@@ -245,39 +258,229 @@ export class RedisRateLimiter extends RateLimiter {
     const clearBefore = now - this.interval;
 
     const batch = this.client.multi();
-    batch.zremrangebyscore(key, 0, clearBefore);
+    batch.zRemRangeByScore(key, 0, clearBefore);
     if (addNewTimestamp) {
-      batch.zadd(key, String(now), uuid());
+      batch.zAdd(key, now, uuid());
     }
-    batch.zrange(key, 0, -1, 'WITHSCORES');
+    batch.zRangeWithScores(key, 0, -1);
     batch.expire(key, this.ttl);
 
-    return new Promise((resolve, reject) => {
-      batch.exec((err, result) => {
-        if (err) return reject(err);
+    const results = await batch.exec();
+    const zRangeResult = addNewTimestamp ? results[2] : results[1];
+    return this.client.parseZRangeResult(zRangeResult);
+  }
+}
 
-        const zRangeOutput = (addNewTimestamp ? result[2] : result[1]) as Array<unknown>;
-        const zRangeResult = this.getZRangeResult(zRangeOutput);
-        const timestamps = this.extractTimestampsFromZRangeResult(zRangeResult);
-        return resolve(timestamps);
+/**
+ * Duck-typed `node-redis` client. We don't want to use the actual typing because that would
+ * force users to install `node-redis` as a peer dependency.
+ */
+interface NodeRedisClient {
+  del(arg: string): unknown;
+  multi(): NodeRedisMulti;
+}
+
+/**
+ * Duck-typed `node-redis` multi object. We don't want to use the actual typing because that would
+ * force users to install `node-redis` as a peer dependency.
+ */
+interface NodeRedisMulti {
+  zRemRangeByScore(key: string, min: number, max: number): void;
+  zAdd(key: string, item: { score: number; value: string }): void;
+  zRangeWithScores(key: string, min: number, max: number): void;
+  expire(key: string, time: number): void;
+  exec(): Promise<Array<unknown>>;
+}
+
+/**
+ * Wrapper for `node-redis` client, proxying method calls to the underlying client.
+ */
+class NodeRedisClientWrapper implements RedisClientWrapper {
+  client: NodeRedisClient;
+
+  constructor(client: NodeRedisClient) {
+    this.client = client;
+  }
+
+  del(arg: string) {
+    return this.client.del(arg);
+  }
+
+  multi() {
+    return new NodeRedisMultiWrapper(this.client.multi());
+  }
+
+  parseZRangeResult(result: unknown) {
+    return (
+      result as Array<{
+        value: string;
+        score: number;
+      }>
+    ).map(({ score }) => score as Microseconds);
+  }
+}
+
+/**
+ * Wrapper for `node-redis` multi batch, proxying method calls to the underlying client.
+ */
+class NodeRedisMultiWrapper implements RedisMultiWrapper {
+  multi: NodeRedisMulti;
+
+  constructor(multi: NodeRedisMulti) {
+    this.multi = multi;
+  }
+
+  zRemRangeByScore(key: string, min: number, max: number) {
+    this.multi.zRemRangeByScore(key, min, max);
+  }
+
+  zAdd(key: string, score: number, value: string) {
+    this.multi.zAdd(key, { score: Number(score), value });
+  }
+
+  zRangeWithScores(key: string, min: number, max: number) {
+    this.multi.zRangeWithScores(key, min, max);
+  }
+
+  expire(key: string, time: number) {
+    this.multi.expire(key, time);
+  }
+
+  async exec() {
+    // TODO: ensure everything is a string?
+    return this.multi.exec();
+  }
+}
+
+/**
+ * Rate limiter backed by `node-redis`.
+ */
+export class NodeRedisRateLimiter extends BaseRedisRateLimiter {
+  constructor({ client, ...baseOptions }: RedisRateLimiterOptions<NodeRedisClient>) {
+    super({ client: new NodeRedisClientWrapper(client), ...baseOptions });
+  }
+}
+
+/**
+ * Duck-typed `ioredis` client. We don't want to use the actual typing because that would
+ * force users to install `ioredis` as a peer dependency.
+ */
+interface IORedisClient {
+  del(arg: string): unknown;
+  multi(): IORedisMulti;
+}
+
+/**
+ * Duck-typed `ioredis` multi object. We don't want to use the actual typing because that would
+ * force users to install `ioredis` as a peer dependency.
+ */
+interface IORedisMulti {
+  zremrangebyscore(key: string, min: number, max: number): void;
+  zadd(key: string, score: number, value: string): void;
+  zrange(key: string, min: number, max: number, withScores: 'WITHSCORES'): void;
+  expire(key: string, time: number): void;
+  exec(): Promise<Array<[error: Error | null, result: unknown]> | null>;
+}
+
+/**
+ * Wrapper for `ioredis` client, proxying method calls to the underlying client.
+ */
+class IORedisClientWrapper implements RedisClientWrapper {
+  client: IORedisClient;
+
+  constructor(client: IORedisClient) {
+    this.client = client;
+  }
+
+  del(arg: string) {
+    return this.client.del(arg);
+  }
+
+  multi() {
+    return new IORedisMultiWrapper(this.client.multi());
+  }
+
+  parseZRangeResult(result: unknown) {
+    const valuesAndScores = (result as [null, Array<string>])[1];
+    return valuesAndScores.filter((e, i) => i % 2).map(Number) as Array<Microseconds>;
+  }
+}
+
+/**
+ * Wrapper for `ioredis` multi batch, proxying method calls to the underlying client.
+ */
+class IORedisMultiWrapper implements RedisMultiWrapper {
+  multi: IORedisMulti;
+
+  constructor(multi: IORedisMulti) {
+    this.multi = multi;
+  }
+
+  zRemRangeByScore(key: string, min: number, max: number) {
+    this.multi.zremrangebyscore(key, min, max);
+  }
+
+  zAdd(key: string, score: number, value: string) {
+    this.multi.zadd(key, score, value);
+  }
+
+  zRangeWithScores(key: string, min: number, max: number) {
+    this.multi.zrange(key, min, max, 'WITHSCORES');
+  }
+
+  expire(key: string, time: number) {
+    this.multi.expire(key, time);
+  }
+
+  async exec() {
+    return (await this.multi.exec()) ?? [];
+  }
+}
+
+/**
+ * Rate limiter backed by `ioredis`.
+ */
+export class IORedisRateLimiter extends BaseRedisRateLimiter {
+  constructor({ client, ...baseOptions }: RedisRateLimiterOptions<IORedisClient>) {
+    super({ client: new IORedisClientWrapper(client), ...baseOptions });
+  }
+}
+
+type RedisClientType = 'node-redis' | 'ioredis';
+
+/**
+ * Rate limiter backed by either `node-redis` or `ioredis`.
+ * Uses duck-typing to determine which client is being used.
+ */
+export class RedisRateLimiter extends BaseRedisRateLimiter {
+  /**
+   * Given an unknown object, determine what type of redis client it is.
+   * Used by the constructor of this class.
+   */
+  public static determineRedisClientType(client: any): RedisClientType | null {
+    if ('zRemRangeByScore' in client && 'ZREMRANGEBYSCORE' in client) return 'node-redis';
+    if ('zremrangebyscore' in client) return 'ioredis';
+    return null;
+  }
+
+  public readonly detectedClientType: RedisClientType;
+
+  constructor({ client, ...baseOptions }: RedisRateLimiterOptions<any>) {
+    const clientType = RedisRateLimiter.determineRedisClientType(client);
+    if (clientType == null) {
+      throw new Error('Could not detect redis client type');
+    } else if (clientType === 'node-redis') {
+      super({
+        client: new NodeRedisClientWrapper(client as NodeRedisClient),
+        ...baseOptions,
       });
-    });
-  }
-
-  private getZRangeResult(zRangeOutput: Array<unknown>) {
-    if (!Array.isArray(zRangeOutput[1])) {
-      // Standard redis client, regular mode.
-      return zRangeOutput as Array<string>;
     } else {
-      // ioredis client.
-      return zRangeOutput[1] as Array<string>;
+      super({
+        client: new IORedisClientWrapper(client as IORedisClient),
+        ...baseOptions,
+      });
     }
-  }
-
-  private extractTimestampsFromZRangeResult(zRangeResult: Array<string>) {
-    // We only want the stored timestamps, which are the values, or the odd indexes.
-    // Map to numbers because by default all returned values are strings.
-    return zRangeResult.filter((e, i) => i % 2).map(Number) as Array<Microseconds>;
+    this.detectedClientType = clientType;
   }
 }
 

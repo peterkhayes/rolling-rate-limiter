@@ -1,3 +1,12 @@
+# 0.4 (2022/02/13)
+
+Some significant changes were required to support [V4 of the standard node redis library](https://github.com/redis/node-redis/blob/master/CHANGELOG.md#v400---24-nov-2021). This new version has an API that now differs significantly from IORedis.
+
+- Updated all dependencies to latest versions.
+- Changed underlying implementation to support both clients by wrapping them in private classes.
+- `RedisRateLimiter` now detects which client type it is passed.
+- For added safety, use new `NodeRedisRateLimiter` or `IORedisRateLimiter` classes, which do not attempt to detect client type.
+- Tests now don't mock time. It turns out this wasn't needed.
 
 # 0.3 (2022/09/13)
 

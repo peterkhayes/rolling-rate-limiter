@@ -16,7 +16,7 @@ This behavior is somewhat counterintuitive, but it's the only way that I have fo
 Basic use in an Express application.
 
 ```javascript
-const { RedisRateLimiter } = require("rolling-rate-limiter");
+const { NodeRedisRateLimiter } = require("rolling-rate-limiter");
 
 const limiter = new RedisRateLimiter({
   client: redisClient, // client instance from `redis` or `ioredis`
@@ -38,8 +38,11 @@ app.use(function (req, res, next) {
 
 ## Available limiters
 
-- `RedisRateLimiter` - Stores state in Redis. Can use `redis` or `ioredis` clients.
 - `InMemoryRateLimiter` - Stores state in memory. Useful in testing or outside of web servers.
+- Redis rate limiters: There are two main redis clients for node: [redis (aka node-redis)](https://github.com/redis/node-redis) and [ioredis](https://github.com/luin/ioredis). Both are supported:
+  - `RedisRateLimiter` - Attempts to detect whether it was passed a `redis` or `ioredis` client.
+  - `NodeRedisRateLimiter` - No detection; only works with `redis` client.
+  - `IORedisRateLimiter` - No detection; only works with `ioredis` client.
 
 ## Configuration options
 
