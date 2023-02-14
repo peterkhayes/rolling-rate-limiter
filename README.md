@@ -16,7 +16,7 @@ This behavior is somewhat counterintuitive, but it's the only way that I have fo
 Basic use in an Express application.
 
 ```javascript
-const { NodeRedisRateLimiter } = require("rolling-rate-limiter");
+const { RedisRateLimiter } = require("rolling-rate-limiter");
 
 const limiter = new RedisRateLimiter({
   client: redisClient, // client instance from `redis` or `ioredis`
